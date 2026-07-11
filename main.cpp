@@ -27,10 +27,29 @@ int main() {
     std::string inputBuffer; // what the player is typing right now
 
     while (!WindowShouldClose() && loop.isPlaying()) {
-    // collect keypresses into inputBuffer
-    // if Enter pressed — call loop.runFrame(inputBuffer), clear buffer
-    // draw everything
-}
+
+        // collect keypresses
+        int ch = GetCharPressed();
+        while (ch > 0) {
+            if (ch >= 32 && ch <= 125)
+                inputBuffer += (char)ch;
+            ch = GetCharPressed();
+        }
+
+        // backspace
+        if (IsKeyPressed(KEY_BACKSPACE) && !inputBuffer.empty())
+            inputBuffer.pop_back();
+
+        // enter — send command
+        if (IsKeyPressed(KEY_ENTER)) {
+            loop.runFrame(inputBuffer);
+            inputBuffer.clear();
+        }
+
+        // draw
+        drawGame(world, player, inputBuffer);
+    }
+
 CloseWindow();
 
     return 0;

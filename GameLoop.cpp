@@ -14,8 +14,34 @@ static std::string toLower(std::string s) {
     return s;
 }
 void GameLoop::runFrame(const std::string& input) {
-    (void)input;
-    // Implementation for running a single frame
+    if (input.empty()) return;
+
+    checkWorldProgression();
+
+    std::istringstream ss(input);
+    std::string verb;
+    ss >> verb;
+    verb = toLower(verb);
+
+    std::string arg;
+    std::getline(ss, arg);
+    if (!arg.empty() && arg[0] == ' ') arg = arg.substr(1);
+
+    if      (verb == "go")        cmdGo(toLower(arg));
+    else if (verb == "pickup")    cmdPickup(arg);
+    else if (verb == "drop")      cmdDrop(arg);
+    else if (verb == "inventory") cmdInventory();
+    else if (verb == "equip")     cmdEquip(arg);
+    else if (verb == "unequip")   cmdUnequip(arg);
+    else if (verb == "attack")    cmdAttack(arg);
+    else if (verb == "look")      cmdLook();
+    else if (verb == "magic")     cmdUseMagic();
+    else if (verb == "talk")      cmdTalk(arg);
+    else if (verb == "use")       cmdUseTool(arg);
+    else if (verb == "flee")      cmdFlee();
+    else if (verb == "me")        cmdMe();
+    else if (verb == "help")      showHelp();
+    else if (verb == "exit")      playing = false;
 }
 bool GameLoop::isPlaying() const {
     return playing;
