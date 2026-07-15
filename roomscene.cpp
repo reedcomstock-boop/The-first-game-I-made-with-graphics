@@ -39,11 +39,74 @@ int RoomSceneManager::registerTileset(const std::string& name, const std::string
     return idx;
 }
 
+// A hand-authored room layout: each string is one row, each character maps to
+// a tile via the legend below. Rows must all be the same length. Missing
+// rooms fall back to the auto-generated border-box layout in buildLayouts().
+struct ManualLayout {
+    std::vector<std::string> rows;
+    std::vector<std::string> decorRows;
+    std::vector<DecorFeature> decorFeatures; // multi-cell decor objects (doors, banners, etc.)
+    std::unordered_map<char, TileRef> legend;
+    std::unordered_map<char, TileRef> decorLegend;
+};
+
+static std::unordered_map<std::string, ManualLayout> g_manualLayouts;
+
+void RoomSceneManager::defineManualLayouts() {
+    int floorsIdx  = tilesetIndex.count("floors")  ? tilesetIndex["floors"]  : -1;
+    int wallsIdx   = tilesetIndex.count("walls")   ? tilesetIndex["walls"]   : -1;
+    int waterIdx   = tilesetIndex.count("water")   ? tilesetIndex["water"]   : -1;
+    int dungeonIdx = tilesetIndex.count("dungeon") ? tilesetIndex["dungeon"] : -1;
+
+    // --- The Camp Ground (from earlier) ---
+    ManualLayout campGround;
+    campGround.legend = {
+        { '#', { wallsIdx,  27 } },
+        { '.', { floorsIdx, 16 } },
+        { ',', { floorsIdx, 17 } },
+        { '~', { waterIdx,   0 } },
+    };
+    campGround.rows = {
+        "#####################",
+        "#...................#",
+        "#..,............~~..#",
+        "#...................#",
+        "#..,.......,....~~..#",
+        "#...................#",
+        "#####################",
+    };
+    g_manualLayouts["The Camp Ground"] = campGround;
+
+    ManualLayout theCage;
+    theCage.legend = {
+        { '#', { wallsIdx,  27 } },
+        { '.', { floorsIdx, 16 } },
+        { ',', { floorsIdx, 17 } },
+        { '~', { waterIdx,   0 } },
+    };
+    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 0, 2 } }; // door at (0,1) in the room grid
+    
+    g_manualLayouts["The Cage"] = theCage;
+
+
+
+    //ManualLayout mazeVault;
+    // ... legend/rows/decorLegend/decorRows as before ...
+
+    //mazeVault.decorFeatures = {
+    // door: say it's 2 cells wide, 3 cells tall, starting at sheet (col=0, row=7),
+    // placed at grid position (col=0, row=1) in this room
+    //{ dungeonIdx, /*sheetCol*/ 0, /*sheetRow*/ 7, /*cellsWide*/ 2, /*cellsHigh*/ 3, /*gridCol*/ 0, /*gridRow*/ 1 },
+    //};
+    //g_manualLayouts["Maze3"] = mazeVault;
+
+}
 void RoomSceneManager::loadTilesets(const std::string& assetDir) {
     registerTileset("floors",  assetDir + "/tiles/Floors_Tiles.png");
     registerTileset("walls",   assetDir + "/tiles/Wall_Tiles.png");
     registerTileset("water",   assetDir + "/tiles/Water_tiles.png");
     registerTileset("dungeon", assetDir + "/tiles/Dungeon_Tiles.png");
+    defineManualLayouts(); // must come after tilesets are registered — needs their indices
 }
 
 void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
@@ -52,21 +115,21 @@ void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
         StripAnimator a;
         a.addClip("idle", assetDir + "/npc/Knight/Idle-Sheet.png", 4, 0.15f, 32, 32);
         a.addClip("run",  assetDir + "/npc/Knight/Run-Sheet.png",  6, 0.10f, 64, 64);
-        npcAnimators["Newt"] = a;
+        npcAnimators["Newt"] = std::move(a);
     }
     // Gally and Minho — Rogue skin, placeholder assignment for both
     for (const std::string name : {"Gally", "Minho"}) {
         StripAnimator a;
         a.addClip("idle", assetDir + "/npc/Rogue/Idle-Sheet.png", 4, 0.15f, 32, 32);
         a.addClip("run",  assetDir + "/npc/Rogue/Run-Sheet.png",  6, 0.10f, 64, 64);
-        npcAnimators[name] = a;
+        npcAnimators[name] = std::move(a);
     }
     // Pete — green-vest, side-facing only (idle 4 frames, walk 6 frames @64x64)
     {
         StripAnimator a;
         a.addClip("idle", assetDir + "/npc/pete/Idle_Side-Sheet.png", 4, 0.15f, 64, 64);
         a.addClip("walk", assetDir + "/npc/pete/Walk_Side-Sheet.png", 6, 0.10f, 64, 64);
-        npcAnimators["Pete"] = a;
+        npcAnimators["Pete"] = std::move(a);
     }
 }
 
@@ -74,14 +137,27 @@ void RoomSceneManager::loadProps(const std::string& assetDir) {
     {
         StripAnimator a;
         a.addClip("burn", assetDir + "/Props/Bonfire_01-Sheet.png", 4, 0.15f, 32, 32);
-        propAnimators["bonfire"] = a;
+        propAnimators["bonfire"] = std::move(a);
     }
     {
         StripAnimator a;
         a.addClip("burn", assetDir + "/Props/Iron_01-Sheet.png", 2, 0.30f, 32, 96);
-        propAnimators["forge_iron"] = a;
+        propAnimators["forge_iron"] = std::move(a);
     }
 }
+
+void RoomSceneManager::loadMonsterSprites(const std::string& assetDir) {
+    // Build a fresh animator per Griever name — can't share one StripAnimator
+    // across map entries since it's move-only (each move empties the source).
+    for (const std::string& n : {"The First Griever", "Griever 1", "Griever 2",
+                                  "Griever 3", "Griever 5", "Griever 7", "Griever 8"}) {
+        StripAnimator griever;
+        griever.addClip("idle", assetDir + "/Mobs/Orc Crew/Orc - Warrior/Idle/Idle-Sheet.png", 4, 0.15f, 32, 32);
+        griever.addClip("run",  assetDir + "/Mobs/Orc Crew/Orc - Warrior/Run/Run-Sheet.png",  6, 0.10f, 64, 64);
+        npcAnimators[n] = std::move(griever);
+    }
+}
+
 
 void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
     int floorsIdx  = tilesetIndex.count("floors")  ? tilesetIndex["floors"]  : -1;
@@ -92,6 +168,37 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
     for (Room* r : world.getRooms()) {
         std::string name = r->getName();
 
+        auto manualIt = g_manualLayouts.find(name);
+        if (manualIt != g_manualLayouts.end()) {
+            const ManualLayout& layout = manualIt->second;
+            RoomScene scene;
+            int layoutRows = (int)layout.rows.size();
+            int layoutCols = layoutRows > 0 ? (int)layout.rows[0].size() : 0;
+            scene.floor.assign(layoutRows, std::vector<TileRef>(layoutCols, {-1, -1}));
+
+            for (int rr = 0; rr < layoutRows; rr++) {
+                for (int cc = 0; cc < layoutCols && cc < (int)layout.rows[rr].size(); cc++) {
+                    char ch = layout.rows[rr][cc];
+                    auto legendIt = layout.legend.find(ch);
+                    scene.floor[rr][cc] = (legendIt != layout.legend.end())
+                        ? legendIt->second
+                        : TileRef{ -1, -1 }; // unknown char — draws nothing, easy to spot while authoring
+                }
+            }
+            scene.decor.assign(layoutRows, std::vector<TileRef>(layoutCols, {-1, -1}));
+            for (int rr = 0; rr < layoutRows && rr < (int)layout.decorRows.size(); rr++) {
+                for (int cc = 0; cc < layoutCols && cc < (int)layout.decorRows[rr].size(); cc++) {
+                    char ch = layout.decorRows[rr][cc];
+                    auto it = layout.decorLegend.find(ch);
+                    scene.decor[rr][cc] = (it != layout.decorLegend.end()) ? it->second : TileRef{-1,-1};
+                }
+            }
+            scene.decorFeatures = layout.decorFeatures;   // <-- add this line
+            rooms[name] = scene;
+            continue; // skip the auto-generated version entirely for this room
+        }
+
+        // --- existing auto-generated fallback for every other room ---
         int useFloorSet  = floorsIdx;
         int useFloorTile = FLOOR_TILE_INDEX;
         int useWallSet   = wallsIdx;
@@ -117,11 +224,9 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
             scene.floor[rr][0]        = { useWallSet, useWallTile };
             scene.floor[rr][cols - 1] = { useWallSet, useWallTile };
         }
-
         rooms[name] = scene;
     }
 
-    // Themed prop placement — the only two rooms called out in the asset list.
     if (rooms.count("The Camp Ground"))
         rooms["The Camp Ground"].props.push_back({ "bonfire", 0.5f, 0.6f });
     if (rooms.count("The Shed"))
@@ -154,7 +259,32 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
         }
     }
 }
+void RoomSceneManager::drawDecor(const std::string& roomName, int originX, int originY, float scale) const {
+    auto it = rooms.find(roomName);
+    if (it == rooms.end()) return;
+    const RoomScene& scene = it->second;
 
+    int tileDraw = (int)(16 * scale);
+    for (size_t r = 0; r < scene.decor.size(); r++) {
+        for (size_t c = 0; c < scene.decor[r].size(); c++) {
+            const TileRef& t = scene.decor[r][c];
+            if (t.tilesetId < 0) continue; // no decor here — see the floor tile beneath
+            tilesets[t.tilesetId].drawTile(t.tileIndex,
+                originX + c * tileDraw, originY + r * tileDraw, scale);
+        }
+    }
+}
+void RoomSceneManager::drawDecorFeatures(const std::string& roomName, int originX, int originY, float scale) const {
+    auto it = rooms.find(roomName);
+    if (it == rooms.end()) return;
+
+    int tileDraw = (int)(16 * scale);
+    for (const DecorFeature& f : it->second.decorFeatures) {
+        if (f.tilesetId < 0 || f.tilesetId >= (int)tilesets.size()) continue;
+        tilesets[f.tilesetId].drawRegion(f.sheetCol, f.sheetRow, f.cellsWide, f.cellsHigh,
+            originX + f.gridCol * tileDraw, originY + f.gridRow * tileDraw, scale);
+    }
+}
 void RoomSceneManager::drawProps(const std::string& roomName, int originX, int originY,
                                   int viewportW, int viewportH, float scale) const {
     auto it = rooms.find(roomName);
@@ -166,17 +296,6 @@ void RoomSceneManager::drawProps(const std::string& roomName, int originX, int o
         int x = originX + (int)(p.relX * viewportW);
         int y = originY + (int)(p.relY * viewportH);
         animIt->second.draw(x, y, scale);
-    }
-}
-void RoomSceneManager::loadMonsterSprites(const std::string& assetDir) {
-    StripAnimator griever;
-    griever.addClip("idle", assetDir + "/Mobs/Orc Crew/Orc - Warrior/Idle/Idle-Sheet.png", 4, 0.15f, 32, 32);
-    griever.addClip("run",  assetDir + "/Mobs/Orc Crew/Orc - Warrior/Run/Run-Sheet.png",  6, 0.10f, 64, 64);
-
-    // Register under every Griever name used in world.cpp
-    for (const std::string n : {"The First Griever", "Griever 1", "Griever 2",
-                                  "Griever 3", "Griever 5", "Griever 7", "Griever 8"}) {
-        npcAnimators[n] = griever;
     }
 }
 

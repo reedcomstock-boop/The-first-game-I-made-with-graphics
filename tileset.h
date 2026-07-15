@@ -10,7 +10,7 @@ class TileSet {
 public:
     TileSet();
     ~TileSet();
-
+    void drawRegion(int col, int row, int cellsWide, int cellsHigh, float destX, float destY, float scale) const;
     bool load(const std::string& path, int tileSize = 16);
     void unload();
     bool isLoaded() const;

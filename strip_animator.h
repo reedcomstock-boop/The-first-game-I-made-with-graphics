@@ -23,6 +23,15 @@ public:
     StripAnimator();
     ~StripAnimator();
 
+    // Non-copyable: unload() frees every clip's GPU texture, so a shallow
+    // copy would leave a dangling texture handle in whichever copy outlives
+    // the other. std::vector's own move ctor/assignment already transfers
+    // ownership correctly (leaves the source's clips empty, so its destructor
+    // frees nothing) — defaulting move here is enough once copy is deleted.
+    StripAnimator(const StripAnimator&) = delete;
+    StripAnimator& operator=(const StripAnimator&) = delete;
+    StripAnimator(StripAnimator&&) = default;
+    StripAnimator& operator=(StripAnimator&&) = default;
     void addClip(const std::string& name, const std::string& path,
                  int frameCount, float frameDuration, int frameW, int frameH);
     void unload();

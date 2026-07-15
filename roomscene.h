@@ -15,7 +15,15 @@ struct TileRef {
     int tilesetId;
     int tileIndex;
 };
-
+// A decoration that spans multiple cells in the sheet (a door, a banner, a
+// structure) — placed at a specific grid position in the room, but drawn as
+// one multi-cell region rather than tiled cell-by-cell.
+struct DecorFeature {
+    int tilesetId;
+    int sheetCol, sheetRow;      // top-left cell in the source sheet
+    int cellsWide, cellsHigh;    // how many cells wide/tall in the sheet
+    int gridCol, gridRow;        // top-left cell in the room's grid to place it
+};
 // A themed prop placed in a room (bonfire, forge). Position is stored as a
 // fraction of the scene viewport so it doesn't need updating if the
 // viewport size ever changes.
@@ -25,7 +33,9 @@ struct PropInstance {
 };
 
 struct RoomScene {
-    std::vector<std::vector<TileRef>> floor; // [row][col]
+    std::vector<std::vector<TileRef>> floor;
+    std::vector<std::vector<TileRef>> decor;
+    std::vector<DecorFeature> decorFeatures;  // NEW — multi-cell objects
     std::vector<PropInstance> props;
 };
 
@@ -36,7 +46,7 @@ class RoomSceneManager {
 public:
     RoomSceneManager();
     ~RoomSceneManager();
-
+    void defineManualLayouts();
     void loadTilesets(const std::string& assetDir);
     void loadNpcSprites(const std::string& assetDir);
     void loadProps(const std::string& assetDir);
@@ -56,6 +66,8 @@ public:
     void unloadAll();
 
     void drawFloor(const std::string& roomName, int originX, int originY, float scale) const;
+    void drawDecor(const std::string& roomName, int originX, int originY, float scale) const;
+    void drawDecorFeatures(const std::string& roomName, int originX, int originY, float scale) const;
     void drawProps(const std::string& roomName, int originX, int originY,
                     int viewportW, int viewportH, float scale) const;
     void drawNpcs(const std::vector<NPC*>& npcsInRoom, int originX, int originY,

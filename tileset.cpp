@@ -24,7 +24,15 @@ void TileSet::unload() {
     if (loaded) UnloadTexture(texture);
     loaded = false;
 }
-
+void TileSet::drawRegion(int col, int row, int cellsWide, int cellsHigh,
+                          float destX, float destY, float scale) const {
+    if (!loaded) return;
+    Rectangle src = { (float)(col * tileSize), (float)(row * tileSize),
+                       (float)(cellsWide * tileSize), (float)(cellsHigh * tileSize) };
+    Rectangle dst = { destX, destY,
+                       cellsWide * tileSize * scale, cellsHigh * tileSize * scale };
+    DrawTexturePro(texture, src, dst, {0, 0}, 0.0f, WHITE);
+}
 bool TileSet::isLoaded() const { return loaded; }
 int  TileSet::getColumns() const { return columns; }
 int  TileSet::getRows() const { return rows; }

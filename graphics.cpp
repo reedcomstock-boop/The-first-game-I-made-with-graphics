@@ -2,6 +2,9 @@
 #include "raylib.h"
 #include "roomscene.h"
 #include <string>
+#include <queue>
+#include <unordered_map>
+#include <algorithm>
 
 // -----------------------------------------------------------------------
 // Layout
@@ -182,6 +185,8 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas) {
     Rectangle sceneRect = { (float)x, (float)y, (float)mW, (float)SCENE_H };
     DrawRectangleRec(sceneRect, BLACK);
     g_scene.drawFloor(room->getName(), x, y, TILE_SCALE);
+    g_scene.drawDecor(room->getName(), x, y, TILE_SCALE);
+    g_scene.drawDecorFeatures(room->getName(), x, y, TILE_SCALE);  // NEW — doors, banners, structures
     g_scene.drawProps(room->getName(), x, y, mW, SCENE_H, TILE_SCALE);
     g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, SCENE_H, TILE_SCALE);
     thomas.draw(x + mW / 2, y + (int)(SCENE_H * 0.65f), 2.0f);
@@ -256,15 +261,107 @@ static void drawInputBar(const std::string& inputBuffer) {
     DrawText("Type a command and press Enter.  'help' for a list.",
              x, y + LINE_H, FS_SMALL, C_DIM);
 }
-static void drawPortrait(const Player& player, SpriteAnimator& animator) {
+
+// -----------------------------------------------------------------------
+// Mini-map — lays out rooms on a grid by walking the exit graph. Rebuilt
+// automatically whenever the room count changes, since the world grows at
+// runtime (createMaze()/createMazePhaseTwo() add rooms as the game progresses).
+// -----------------------------------------------------------------------
+static std::unordered_map<const Room*, std::pair<int,int>> g_mapCoords;
+static size_t g_mapRoomCount = 0;
+
+static std::pair<int,int> dirOffset(const std::string& dir) {
+    if (dir == "north" )   return {0, -1};
+    if (dir == "south") return {0,  1};
+    if (dir == "east")                   return {1,  0};
+    if (dir == "west")                   return {-1, 0};
+    return {0, 0}; // unrecognized direction — stacks on the same cell, still visible
+}
+
+static void buildMiniMap(const World& world) {
+    g_mapCoords.clear();
+    const auto& rooms = world.getRooms();
+    if (rooms.empty()) return;
+
+    std::queue<const Room*> q;
+    q.push(rooms[0]);
+    g_mapCoords[rooms[0]] = {0, 0};
+
+    while (!q.empty()) {
+        const Room* r = q.front(); q.pop();
+        std::pair<int,int> pos = g_mapCoords[r];
+        for (const auto& e : r->getExits()) {
+            const Room* next = e.second;
+            if (g_mapCoords.count(next)) continue;
+            std::pair<int,int> off = dirOffset(e.first);
+            g_mapCoords[next] = { pos.first + off.first, pos.second + off.second };
+            q.push(next);
+        }
+    }
+    g_mapRoomCount = rooms.size();
+}
+
+static void drawMiniMap(const World& world, const Room* current, Rectangle area) {
+    if (world.getRooms().size() != g_mapRoomCount) {
+        buildMiniMap(world);
+    }
+    if (g_mapCoords.empty()) return;
+
+    int minX = INT32_MAX, maxX = INT32_MIN, minY = INT32_MAX, maxY = INT32_MIN;
+    for (const auto& kv : g_mapCoords) {
+        minX = std::min(minX, kv.second.first);
+        maxX = std::max(maxX, kv.second.first);
+        minY = std::min(minY, kv.second.second);
+        maxY = std::max(maxY, kv.second.second);
+    }
+    int spanX = std::max(1, maxX - minX);
+    int spanY = std::max(1, maxY - minY);
+
+    float cell = std::min(area.width / (spanX + 1), area.height / (spanY + 1));
+    float gridW = cell * (spanX + 1);
+    float gridH = cell * (spanY + 1);
+    float originX = area.x + (area.width  - gridW) / 2.0f;
+    float originY = area.y + (area.height - gridH) / 2.0f;
+
+    auto cellCenter = [&](int gx, int gy) -> Vector2 {
+        return { originX + (gx - minX) * cell + cell / 2.0f,
+                 originY + (gy - minY) * cell + cell / 2.0f };
+    };
+
+    // Connections first, so room markers draw on top of the lines
+    for (const Room* r : world.getRooms()) {
+        auto itA = g_mapCoords.find(r);
+        if (itA == g_mapCoords.end()) continue;
+        Vector2 a = cellCenter(itA->second.first, itA->second.second);
+        for (const auto& e : r->getExits()) {
+            auto itB = g_mapCoords.find(e.second);
+            if (itB == g_mapCoords.end()) continue;
+            Vector2 b = cellCenter(itB->second.first, itB->second.second);
+            DrawLineEx(a, b, 1.5f, C_BORDER);
+        }
+    }
+
+    // Room markers — bigger/highlighted for the player's current room
+    float markerR = std::max(2.0f, cell * 0.22f);
+    for (const auto& kv : g_mapCoords) {
+        Vector2 c = cellCenter(kv.second.first, kv.second.second);
+        bool isCurrent = (kv.first == current);
+        DrawCircleV(c, isCurrent ? markerR * 1.6f : markerR, isCurrent ? C_ACCENT : C_DIM);
+        if (isCurrent) DrawCircleLines((int)c.x, (int)c.y, (int)(markerR * 1.6f) + 2, WHITE);
+    }
+}
+static void drawPortrait(const World& world, const Player& player) {
     Rectangle panel = {624, 16, 160, 200};
-    DrawRectangleRec(panel, {25, 25, 35, 255});
-    DrawRectangleLinesEx(panel, 1.5f, {60, 60, 90, 255});
-    DrawText(player.getName().c_str(), 632, 24, 14, {180, 140, 60, 255});
-    animator.draw(704, 120, 2.5f);
-    const char* label = player.getInCombat() ? "ATTACKING" :
-                        player.getHealth() <= 0 ? "DEFEATED" : "IDLE";
-    DrawText(label, 632, 190, 13, {100, 100, 120, 255});
+    DrawRectangleRec(panel, C_PANEL);
+    DrawRectangleLinesEx(panel, 1.5f, C_BORDER);
+
+    DrawText(player.getName().c_str(), (int)panel.x + 8, (int)panel.y + 8, 14, C_ACCENT);
+
+    Rectangle mapArea = { panel.x + 8, panel.y + 28, panel.width - 16, panel.height - 56 };
+    drawMiniMap(world, player.getLocation(), mapArea);
+
+    std::string roomLabel = player.getLocation() ? player.getLocation()->getName() : "";
+    DrawText(roomLabel.c_str(), (int)panel.x + 8, (int)(panel.y + panel.height - 20), 12, C_DIM);
 }
 // -----------------------------------------------------------------------
 // drawGame — entry point called every frame from main.cpp
@@ -278,7 +375,7 @@ void drawGame(const World& world, const Player& player,
     ClearBackground(C_BG);
     drawRoom(player.getLocation(), animator);
     drawHUD(player);
-    drawPortrait(player, animator);  // add this line
+    drawPortrait(world, player);  // add this line
     drawInputBar(inputBuffer);
     EndDrawing();
 }
