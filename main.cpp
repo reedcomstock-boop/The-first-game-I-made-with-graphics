@@ -21,7 +21,8 @@ int main() {
     player.setLocation(world.getRoomByName("The Cage"));
  
     GameLoop loop(world, player);
- 
+    std::string exeDir = GetApplicationDirectory();
+    ChangeDirectory(exeDir.c_str());
     InitWindow(800, 600, "The Maze");
     SetTargetFPS(60);
  
