@@ -13,6 +13,7 @@
 #include "sprite.h"
 
 int main() {
+
     Stats startStats = {5, 5, 5, 5};
     Player player("Thomas", "A runner with no memory.", 100.0, startStats);
  

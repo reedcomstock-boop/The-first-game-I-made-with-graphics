@@ -1,4 +1,4 @@
-CXX = g++
+	CXX = g++
 CFLAGS = -Wall -Wextra -pedantic -Werror -std=c++17 -I/opt/homebrew/include
 LDFLAGS = -L/opt/homebrew/lib -lraylib
 

@@ -31,9 +31,11 @@ RoomSceneManager::RoomSceneManager() {}
 RoomSceneManager::~RoomSceneManager() {}
 
 int RoomSceneManager::registerTileset(const std::string& name, const std::string& path) {
-    TileSet ts;
-    ts.load(path, 16);
-    tilesets.push_back(ts);
+    tilesets.emplace_back();
+    if (!tilesets.back().load(path, 16)) {
+        tilesets.pop_back();
+        return -1;
+    }
     int idx = (int)tilesets.size() - 1;
     tilesetIndex[name] = idx;
     return idx;
@@ -77,28 +79,39 @@ void RoomSceneManager::defineManualLayouts() {
     };
     g_manualLayouts["The Camp Ground"] = campGround;
 
+   
     ManualLayout theCage;
     theCage.legend = {
-        { '#', { wallsIdx,  27 } },
-        { '.', { floorsIdx, 16 } },
-        { ',', { floorsIdx, 17 } },
-        { '~', { waterIdx,   0 } },
+        { '#', { dungeonIdx,2 /* solid wall col,row -> row*25+col */ } },
+        { '&', { dungeonIdx,3 /* solid wall col,row -> row*25+col */ } },
+
+        { '.', { dungeonIdx, 55/* solid floor col,row */ } },
     };
-    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 0, 2 } }; // door at (0,1) in the room grid
-    
+    theCage.rows = {
+        "##########",
+        "#........#",
+        "#........#",
+        "#........#",
+        "##########",
+    };
+    theCage.decorLegend = {
+        //feature{ 'D', { dungeonIdx, /* door tile col,row */ } },
+        //{ 'S', { dungeonIdx, /* spike-bar tile col,row */ } },
+        //feature{ 'B', { dungeonIdx, /* banner tile col,row */ } },
+        { 'X', { dungeonIdx, 359/* blood stain tile col,row */ } },
+        //feature{ 'T', { dungeonIdx, /* torch-topped wall col,row */ } },
+        { ' ', { -1, -1 } }, // nothing — floor/wall shows through untouched
+    };
+    theCage.decorRows = {
+        "TT######TT",
+        "D........#",
+        "#...B.....",
+        "#....S...X",
+        "##########",
+    };
+    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 3, 1 } }; // centered-ish, fits in 4 rows
     g_manualLayouts["The Cage"] = theCage;
 
-
-
-    //ManualLayout mazeVault;
-    // ... legend/rows/decorLegend/decorRows as before ...
-
-    //mazeVault.decorFeatures = {
-    // door: say it's 2 cells wide, 3 cells tall, starting at sheet (col=0, row=7),
-    // placed at grid position (col=0, row=1) in this room
-    //{ dungeonIdx, /*sheetCol*/ 0, /*sheetRow*/ 7, /*cellsWide*/ 2, /*cellsHigh*/ 3, /*gridCol*/ 0, /*gridRow*/ 1 },
-    //};
-    //g_manualLayouts["Maze3"] = mazeVault;
 
 }
 void RoomSceneManager::loadTilesets(const std::string& assetDir) {
@@ -253,9 +266,15 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
     for (size_t r = 0; r < scene.floor.size(); r++) {
         for (size_t c = 0; c < scene.floor[r].size(); c++) {
             const TileRef& t = scene.floor[r][c];
-            if (t.tilesetId < 0 || t.tilesetId >= 4) continue;
-            DrawRectangle((int)(originX + c * tileDraw), (int)(originY + r * tileDraw),
-                          tileDraw, tileDraw, TILESET_COLORS[t.tilesetId]);
+            if (t.tilesetId < 0 || t.tilesetId >= (int)tilesets.size()) continue;
+
+            if (tilesets[t.tilesetId].isLoaded()) {
+                tilesets[t.tilesetId].drawTile(t.tileIndex,
+                    originX + c * tileDraw, originY + r * tileDraw, scale);
+            } else {
+                DrawRectangle((int)(originX + c * tileDraw), (int)(originY + r * tileDraw),
+                              tileDraw, tileDraw, TILESET_COLORS[t.tilesetId]);
+            }
         }
     }
 }

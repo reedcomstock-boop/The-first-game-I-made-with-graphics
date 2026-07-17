@@ -10,6 +10,11 @@ class TileSet {
 public:
     TileSet();
     ~TileSet();
+    TileSet(const TileSet&) = delete;
+    TileSet& operator=(const TileSet&) = delete;
+    TileSet(TileSet&& other) noexcept;
+    TileSet& operator=(TileSet&& other) noexcept;
+
     void drawRegion(int col, int row, int cellsWide, int cellsHigh, float destX, float destY, float scale) const;
     bool load(const std::string& path, int tileSize = 16);
     void unload();
