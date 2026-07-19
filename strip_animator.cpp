@@ -1,5 +1,5 @@
+#include <raylib.h>
 #include "strip_animator.h"
-
 StripAnimator::StripAnimator()
     : currentClip(-1), currentFrame(0), frameTimer(0.0f) {}
 

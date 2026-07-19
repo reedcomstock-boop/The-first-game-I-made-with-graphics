@@ -86,13 +86,15 @@ void RoomSceneManager::defineManualLayouts() {
         { '&', { dungeonIdx,3 /* solid wall col,row -> row*25+col */ } },
 
         { '.', { dungeonIdx, 55/* solid floor col,row */ } },
+        { ' ', { -1, -1 } }, // nothing — floor/wall shows through untouched
+        
     };
     theCage.rows = {
-        "##########",
-        "#........#",
-        "#........#",
-        "#........#",
-        "##########",
+        "       ##########",
+        "       #........#",
+        "       #........#",
+        "       #........#",
+        "       ##########",
     };
     theCage.decorLegend = {
         //feature{ 'D', { dungeonIdx, /* door tile col,row */ } },
