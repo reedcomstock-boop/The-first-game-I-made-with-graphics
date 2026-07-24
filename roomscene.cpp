@@ -105,13 +105,13 @@ void RoomSceneManager::defineManualLayouts() {
         { ' ', { -1, -1 } }, // nothing — floor/wall shows through untouched
     };
     theCage.decorRows = {
-        "TT######TT",
-        "D........#",
-        "#...B.....",
-        "#....S...X",
-        "##########",
+        "       TT######TT",
+        "       D........#",
+        "       #...B.....",
+        "       #....S...X",
+        "       ##########",
     };
-    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 3, 1 } }; // centered-ish, fits in 4 rows
+    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 9, 1 } }; // centered-ish, fits in 4 rows
     g_manualLayouts["The Cage"] = theCage;
 
 
