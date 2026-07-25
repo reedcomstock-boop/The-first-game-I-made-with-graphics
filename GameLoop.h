@@ -10,8 +10,7 @@ class GameLoop {
 public:
     GameLoop(World& world, Player& player);
     void runFrame(const std::string& input); // process one command if input is ready
-    bool isPlaying() const;  
-    //void run();
+    bool isPlaying() const;
 
 private:
     World&  world;
@@ -35,7 +34,10 @@ private:
     bool cmdTalk(const std::string& npcName);
     bool cmdLook() const;
     bool cmdMe() const;
+    bool cmdCraft(const std::string& itemName);
+    bool cmdSave(const std::string& filename);
+    bool cmdLoad(const std::string& filename);
 
-    void checkWorldProgression();
+    bool checkWorldProgression(); // returns true if the world advanced a stage
 };
 #endif // GAMELOOP_H

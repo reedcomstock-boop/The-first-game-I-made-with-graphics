@@ -9,18 +9,43 @@
 // -----------------------------------------------------------------------
 // Layout
 // -----------------------------------------------------------------------
-static const int SW        = 800;
-static const int SH        = 600;
-static const int PAD       = 16;
-static const int LINE_H    = 22;
-static const int FS        = 16;   // base font size
-static const int FS_TITLE  = 22;
-static const int FS_SMALL  = 13;
+// Everything below is computed as a percentage of the CURRENT window size
+// each frame, using BASE_SW x BASE_SH (the original fixed 800x600 layout)
+// as the reference the percentages were derived from. At 800x600 nothing
+// changes; resizing the window scales every panel/font with it.
+//
+// NOTE: the animated scene view (tile floor, NPC sprites, props — drawn via
+// g_scene.draw*()) keeps its original fixed tile size regardless of window
+// size. Its column/row count is baked in at load time (SCENE_COLS/ROWS
+// below), so on a bigger window you'll see more black margin around the
+// scene rather than the tiles themselves growing. That's a separate, bigger
+// change (rebuilding the tile grid on resize) — happy to do that next if
+// you want it, but didn't want to bundle it in here.
+static const int BASE_SW = 800;
+static const int BASE_SH = 600;
+static const int BASE_PAD = 16;
 
-// Panel rects
-static const Rectangle ROOM_PANEL  = { PAD,        PAD,        SW - PAD*2,      SH - 200 };
-static const Rectangle HUD_PANEL   = { PAD,        SH - 185,   SW - PAD*2,      100      };
-static const Rectangle INPUT_PANEL = { PAD,        SH - 75,    SW - PAD*2,      50       };
+static inline float SW() { return (float)GetScreenWidth(); }
+static inline float SH() { return (float)GetScreenHeight(); }
+static inline float SX() { return SW() / (float)BASE_SW; }  // width scale factor
+static inline float SY() { return SH() / (float)BASE_SH; }  // height scale factor
+
+static inline float PAD()      { return BASE_PAD   * SX(); }
+static inline int   LINE_H()   { return (int)(22   * SY()); }
+static inline int   FS()       { return (int)(16   * SY()); }   // base font size
+static inline int   FS_TITLE() { return (int)(22   * SY()); }
+static inline int   FS_SMALL() { return (int)(13   * SY()); }
+
+// Panel rects — percentages of current screen size
+static inline Rectangle ROOM_PANEL() {
+    return { PAD(), PAD(), SW() - PAD()*2.0f, (BASE_SH - 200) * SY() };
+}
+static inline Rectangle HUD_PANEL() {
+    return { PAD(), (BASE_SH - 185) * SY(), SW() - PAD()*2.0f, 100 * SY() };
+}
+static inline Rectangle INPUT_PANEL() {
+    return { PAD(), (BASE_SH - 75) * SY(), SW() - PAD()*2.0f, 50 * SY() };
+}
 
 // -----------------------------------------------------------------------
 // Scene view (tile background + NPCs + animated props)
@@ -29,8 +54,8 @@ static const Rectangle INPUT_PANEL = { PAD,        SH - 75,    SW - PAD*2,      
 static const char* ASSET_DIR   = "assets";
 static const float TILE_SCALE  = 2.0f;
 static const int   TILE_DRAW   = 32;       // 16px source tile * TILE_SCALE
-static const int   SCENE_H     = 150;      // height of the scene viewport inside ROOM_PANEL
-static const int   SCENE_COLS  = (int)(SW - PAD*2 - PAD*2) / TILE_DRAW;
+static const int   SCENE_H     = 150;      // height of the scene viewport inside ROOM_PANEL (base pixels, scaled by SY() at draw time)
+static const int   SCENE_COLS  = (int)(BASE_SW - BASE_PAD*2 - BASE_PAD*2) / TILE_DRAW;
 static const int   SCENE_ROWS  = SCENE_H / TILE_DRAW;
 
 static RoomSceneManager g_scene;
@@ -85,7 +110,7 @@ static void drawBar(int x, int y, int w, int h,
     DrawRectangle(x, y, w, h, bg);
     DrawRectangle(x, y, (int)(w * fraction), h, fill);
     DrawRectangleLinesEx({(float)x,(float)y,(float)w,(float)h}, 1.0f, C_BORDER);
-    DrawText(label.c_str(), x + 4, y + (h - FS_SMALL)/2, FS_SMALL, WHITE);
+    DrawText(label.c_str(), x + 4, y + (h - FS_SMALL())/2, FS_SMALL(), WHITE);
 }
 
 // simple word-wrap: draw text inside a rect, return new Y after last line
@@ -113,12 +138,13 @@ static int drawWrapped(const std::string& text, int x, int y, int maxW,
 // drawHUD
 // -----------------------------------------------------------------------
 static void drawHUD(const Player& player) {
-    drawPanel(HUD_PANEL, C_PANEL, C_BORDER);
+    Rectangle hudPanel = HUD_PANEL();
+    drawPanel(hudPanel, C_PANEL, C_BORDER);
 
-    int x = (int)HUD_PANEL.x + PAD;
-    int y = (int)HUD_PANEL.y + 10;
-    int barW = 180;
-    int barH = 18;
+    int x = (int)hudPanel.x + (int)PAD();
+    int y = (int)hudPanel.y + (int)(10 * SY());
+    int barW = (int)(180 * SX());
+    int barH = (int)(18  * SY());
 
     // Health bar
     float hpFrac = (player.MaxHealth() > 0)
@@ -136,31 +162,32 @@ static void drawHUD(const Player& player) {
     if (enFrac > 1.f) enFrac = 1.f;
     std::string enLabel = "EN " + std::to_string((int)player.getEnergy())
                         + "/" + std::to_string((int)player.MaxEnergy());
-    drawBar(x + barW + 16, y, barW, barH, enFrac, C_EN_BG, C_EN, enLabel);
+    drawBar(x + barW + (int)(16 * SX()), y, barW, barH, enFrac, C_EN_BG, C_EN, enLabel);
 
     // Level + name
     std::string lvl = "LVL " + std::to_string(player.getLevel())
                     + "   " + player.getName();
-    DrawText(lvl.c_str(), x + barW*2 + 32, y + 2, FS, C_ACCENT);
+    DrawText(lvl.c_str(), x + barW*2 + (int)(32 * SX()), y + (int)(2 * SY()), FS(), C_ACCENT);
 
     // Combat flash
     if (player.getInCombat()) {
-        int cx = SW - PAD - 130;
-        DrawRectangle(cx - 6, y - 2, 136, barH + 4, C_COMBAT);
-        DrawText("[ IN COMBAT ]", cx, y + 2, FS_SMALL, BLACK);
+        int boxW = (int)(136 * SX());
+        int cx = (int)(SW() - PAD() - 130 * SX());
+        DrawRectangle(cx - (int)(6 * SX()), y - (int)(2 * SY()), boxW, barH + (int)(4 * SY()), C_COMBAT);
+        DrawText("[ IN COMBAT ]", cx, y + (int)(2 * SY()), FS_SMALL(), BLACK);
     }
 
     // Stats row
-    y += barH + 14;
+    y += barH + (int)(14 * SY());
     std::string stats =
         "STR " + std::to_string((int)player.getStats().strength)  + "   " +
         "DEX " + std::to_string((int)player.getStats().dexterity) + "   " +
         "INT " + std::to_string((int)player.getStats().intelligence) + "   " +
         "DEF " + std::to_string((int)player.getStats().defence);
-    DrawText(stats.c_str(), x, y, FS_SMALL, C_DIM);
+    DrawText(stats.c_str(), x, y, FS_SMALL(), C_DIM);
 
     // EXP
-    y += LINE_H - 4;
+    y += LINE_H() - (int)(4 * SY());
 }
 
 // -----------------------------------------------------------------------
@@ -169,97 +196,102 @@ static void drawHUD(const Player& player) {
 static void drawRoom(const Room* room, SpriteAnimator& thomas) {
     if (!room) return;
 
-    drawPanel(ROOM_PANEL, C_PANEL, C_BORDER);
+    Rectangle roomPanel = ROOM_PANEL();
+    drawPanel(roomPanel, C_PANEL, C_BORDER);
 
-    int x  = (int)ROOM_PANEL.x + PAD;
-    int y  = (int)ROOM_PANEL.y + PAD;
-    int mW = (int)ROOM_PANEL.width - PAD * 2;
+    int x  = (int)roomPanel.x + (int)PAD();
+    int y  = (int)roomPanel.y + (int)PAD();
+    int mW = (int)roomPanel.width - (int)PAD() * 2;
 
     // Room name
-    DrawText(room->getName().c_str(), x, y, FS_TITLE, C_ACCENT);
-    y += FS_TITLE + 6;
+    DrawText(room->getName().c_str(), x, y, FS_TITLE(), C_ACCENT);
+    y += FS_TITLE() + (int)(6 * SY());
     DrawLine(x, y, x + mW, y, C_BORDER);
-    y += 10;
+    y += (int)(10 * SY());
 
-    // Scene viewport: tile background, animated props, NPCs, Thomas
-    Rectangle sceneRect = { (float)x, (float)y, (float)mW, (float)SCENE_H };
+    // Scene viewport: tile background, animated props, NPCs, Thomas.
+    // Tile art itself stays at its native size (see note near SCENE_H above) —
+    // only the surrounding box position/height scale with the window.
+    int sceneH = (int)(SCENE_H * SY());
+    Rectangle sceneRect = { (float)x, (float)y, (float)mW, (float)sceneH };
     DrawRectangleRec(sceneRect, BLACK);
     g_scene.drawFloor(room->getName(), x, y, TILE_SCALE);
     g_scene.drawDecor(room->getName(), x, y, TILE_SCALE);
-    g_scene.drawDecorFeatures(room->getName(), x, y, TILE_SCALE);  // NEW — doors, banners, structures
-    g_scene.drawProps(room->getName(), x, y, mW, SCENE_H, TILE_SCALE);
-    g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, SCENE_H, TILE_SCALE);
-    thomas.draw(x + mW / 2, y + (int)(SCENE_H * 0.65f), 2.0f);
+    g_scene.drawDecorFeatures(room->getName(), x, y, TILE_SCALE);  // doors, banners, structures
+    g_scene.drawProps(room->getName(), x, y, mW, sceneH, TILE_SCALE);
+    g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, sceneH, TILE_SCALE);
+    thomas.draw(x + mW / 2, y + (int)(sceneH * 0.65f), 2.0f);
     DrawRectangleLinesEx(sceneRect, 1.5f, C_BORDER);
-    y += SCENE_H + 10;
+    y += sceneH + (int)(10 * SY());
 
     // Description
-    y = drawWrapped(room->getDescription(), x, y, mW, FS, C_TEXT, 3);
-    y += 8;
+    y = drawWrapped(room->getDescription(), x, y, mW, FS(), C_TEXT, 3);
+    y += (int)(8 * SY());
 
     // Two-column layout: NPCs + Items left, Exits right
-    int colW  = mW / 2 - 8;
+    int colW  = mW / 2 - (int)(8 * SX());
     int leftX = x;
-    int rightX = x + colW + 16;
+    int rightX = x + colW + (int)(16 * SX());
     int leftY  = y;
     int rightY = y;
 
     // NPCs
     if (!room->getNpcEntities().empty()) {
-        DrawText("Characters", leftX, leftY, FS_SMALL, C_DIM);
-        leftY += LINE_H - 2;
+        DrawText("Characters", leftX, leftY, FS_SMALL(), C_DIM);
+        leftY += LINE_H() - (int)(2 * SY());
         for (const auto& npc : room->getNpcEntities()) {
             std::string line = "  * " + npc->getName();
-            DrawText(line.c_str(), leftX, leftY, FS, C_NPC);
-            leftY += LINE_H;
+            DrawText(line.c_str(), leftX, leftY, FS(), C_NPC);
+            leftY += LINE_H();
         }
-        leftY += 6;
+        leftY += (int)(6 * SY());
     }
 
     // Items
     if (!room->getItems().empty()) {
-        DrawText("Items", leftX, leftY, FS_SMALL, C_DIM);
-        leftY += LINE_H - 2;
+        DrawText("Items", leftX, leftY, FS_SMALL(), C_DIM);
+        leftY += LINE_H() - (int)(2 * SY());
         for (const auto& item : room->getItems()) {
             std::string line = "  + " + item->getName();
-            DrawText(line.c_str(), leftX, leftY, FS, C_ITEM);
-            leftY += LINE_H;
+            DrawText(line.c_str(), leftX, leftY, FS(), C_ITEM);
+            leftY += LINE_H();
         }
     }
 
     // Exits
-    DrawText("Exits", rightX, rightY, FS_SMALL, C_DIM);
-    rightY += LINE_H - 2;
+    DrawText("Exits", rightX, rightY, FS_SMALL(), C_DIM);
+    rightY += LINE_H() - (int)(2 * SY());
     for (const auto& e : room->getExits()) {
         std::string line = "  " + e.first + " -> " + e.second->getName();
-        DrawText(line.c_str(), rightX, rightY, FS, C_EXIT);
-        rightY += LINE_H;
+        DrawText(line.c_str(), rightX, rightY, FS(), C_EXIT);
+        rightY += LINE_H();
     }
 
     // Divider between columns
-    int divX = x + colW + 8;
-    DrawLine(divX, y, divX, (int)ROOM_PANEL.y + (int)ROOM_PANEL.height - PAD, C_BORDER);
+    int divX = x + colW + (int)(8 * SX());
+    DrawLine(divX, y, divX, (int)roomPanel.y + (int)roomPanel.height - (int)PAD(), C_BORDER);
 }
 
 // -----------------------------------------------------------------------
 // drawInputBar
 // -----------------------------------------------------------------------
 static void drawInputBar(const std::string& inputBuffer) {
-    drawPanel(INPUT_PANEL, C_INPUT_BG, C_BORDER);
+    Rectangle inputPanel = INPUT_PANEL();
+    drawPanel(inputPanel, C_INPUT_BG, C_BORDER);
 
-    int x = (int)INPUT_PANEL.x + PAD;
-    int y = (int)INPUT_PANEL.y + 10;
+    int x = (int)inputPanel.x + (int)PAD();
+    int y = (int)inputPanel.y + (int)(10 * SY());
 
-    DrawText("Command:", x, y, FS_SMALL, C_DIM);
+    DrawText("Command:", x, y, FS_SMALL(), C_DIM);
 
     // blinking cursor — visible for 30 frames, hidden for 30
     bool cursorOn = (GetTime() * 2.0 - (int)(GetTime() * 2.0)) < 0.5;
     std::string prompt = "> " + inputBuffer + (cursorOn ? "|" : " ");
-    DrawText(prompt.c_str(), x + 80, y, FS, C_INPUT_TEXT);
+    DrawText(prompt.c_str(), x + (int)(80 * SX()), y, FS(), C_INPUT_TEXT);
 
     // hint
     DrawText("Type a command and press Enter.  'help' for a list.",
-             x, y + LINE_H, FS_SMALL, C_DIM);
+             x, y + LINE_H(), FS_SMALL(), C_DIM);
 }
 
 // -----------------------------------------------------------------------
@@ -351,17 +383,17 @@ static void drawMiniMap(const World& world, const Room* current, Rectangle area)
     }
 }
 static void drawPortrait(const World& world, const Player& player) {
-    Rectangle panel = {624, 16, 160, 200};
+    Rectangle panel = { 624 * SX(), 16 * SY(), 160 * SX(), 200 * SY() };
     DrawRectangleRec(panel, C_PANEL);
     DrawRectangleLinesEx(panel, 1.5f, C_BORDER);
 
-    DrawText(player.getName().c_str(), (int)panel.x + 8, (int)panel.y + 8, 14, C_ACCENT);
+    DrawText(player.getName().c_str(), (int)panel.x + (int)(8 * SX()), (int)panel.y + (int)(8 * SY()), (int)(14 * SY()), C_ACCENT);
 
-    Rectangle mapArea = { panel.x + 8, panel.y + 28, panel.width - 16, panel.height - 56 };
+    Rectangle mapArea = { panel.x + 8 * SX(), panel.y + 28 * SY(), panel.width - 16 * SX(), panel.height - 56 * SY() };
     drawMiniMap(world, player.getLocation(), mapArea);
 
     std::string roomLabel = player.getLocation() ? player.getLocation()->getName() : "";
-    DrawText(roomLabel.c_str(), (int)panel.x + 8, (int)(panel.y + panel.height - 20), 12, C_DIM);
+    DrawText(roomLabel.c_str(), (int)panel.x + (int)(8 * SX()), (int)(panel.y + panel.height - 20 * SY()), (int)(12 * SY()), C_DIM);
 }
 // -----------------------------------------------------------------------
 // drawGame — entry point called every frame from main.cpp

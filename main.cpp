@@ -24,8 +24,11 @@ int main() {
     GameLoop loop(world, player);
     std::string exeDir = GetApplicationDirectory();
     ChangeDirectory(exeDir.c_str());
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(800, 600, "The Maze");
+    SetWindowMinSize(800, 600);
     SetTargetFPS(60);
+   
  
     // Load all sprite sheets — path is relative to where ./Game runs
     SpriteAnimator animator;
