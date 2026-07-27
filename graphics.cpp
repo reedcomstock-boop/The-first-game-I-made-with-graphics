@@ -7,20 +7,17 @@
 #include <algorithm>
 
 // -----------------------------------------------------------------------
-// Layout
-// -----------------------------------------------------------------------
-// Everything below is computed as a percentage of the CURRENT window size
-// each frame, using BASE_SW x BASE_SH (the original fixed 800x600 layout)
-// as the reference the percentages were derived from. At 800x600 nothing
-// changes; resizing the window scales every panel/font with it.
+// Layout — computed as a percentage of the CURRENT window size each frame,
+// using BASE_SW x BASE_SH (the original fixed 800x600 layout) as the
+// reference the percentages were derived from. At 800x600 nothing changes;
+// resizing the window scales every panel/font with it.
 //
 // NOTE: the animated scene view (tile floor, NPC sprites, props — drawn via
 // g_scene.draw*()) keeps its original fixed tile size regardless of window
 // size. Its column/row count is baked in at load time (SCENE_COLS/ROWS
 // below), so on a bigger window you'll see more black margin around the
-// scene rather than the tiles themselves growing. That's a separate, bigger
-// change (rebuilding the tile grid on resize) — happy to do that next if
-// you want it, but didn't want to bundle it in here.
+// scene rather than the tiles themselves growing.
+// -----------------------------------------------------------------------
 static const int BASE_SW = 800;
 static const int BASE_SH = 600;
 static const int BASE_PAD = 16;
@@ -69,7 +66,6 @@ static void ensureSceneLoaded(const World& world) {
     g_scene.loadProps(ASSET_DIR);
     g_scene.buildLayouts(world, SCENE_COLS, SCENE_ROWS);
     g_sceneLoaded = true;
-
 }
 
 void unloadSceneAssets() {
@@ -191,9 +187,10 @@ static void drawHUD(const Player& player) {
 }
 
 // -----------------------------------------------------------------------
-// drawRoom
+// drawRoom — relX/relY are 0..1 fractions of the scene viewport locating
+// Thomas (0.5,0.5 = dead-center; 0,0 = top-left corner).
 // -----------------------------------------------------------------------
-static void drawRoom(const Room* room, SpriteAnimator& thomas) {
+static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float relY) {
     if (!room) return;
 
     Rectangle roomPanel = ROOM_PANEL();
@@ -220,7 +217,7 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas) {
     g_scene.drawDecorFeatures(room->getName(), x, y, TILE_SCALE);  // doors, banners, structures
     g_scene.drawProps(room->getName(), x, y, mW, sceneH, TILE_SCALE);
     g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, sceneH, TILE_SCALE);
-    thomas.draw(x + mW / 2, y + (int)(sceneH * 0.65f), 2.0f);
+    thomas.draw(x + (int)(relX * mW), y + (int)(relY * sceneH), 2.0f);
     DrawRectangleLinesEx(sceneRect, 1.5f, C_BORDER);
     y += sceneH + (int)(10 * SY());
 
@@ -270,6 +267,37 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas) {
     // Divider between columns
     int divX = x + colW + (int)(8 * SX());
     DrawLine(divX, y, divX, (int)roomPanel.y + (int)roomPanel.height - (int)PAD(), C_BORDER);
+}
+
+// -----------------------------------------------------------------------
+// drawDialogue — shown instead of the room view whenever dialogue.active
+// -----------------------------------------------------------------------
+static void drawDialogue(const DialogueState& dlg) {
+    if (!dlg.active) return;
+    Rectangle panel = ROOM_PANEL(); // reuse the room panel's footprint
+    drawPanel(panel, C_PANEL, C_ACCENT);
+
+    int x = (int)panel.x + (int)PAD();
+    int y = (int)panel.y + (int)PAD();
+    int mW = (int)panel.width - (int)PAD() * 2;
+
+    DrawText(dlg.speaker.c_str(), x, y, FS_TITLE(), C_ACCENT);
+    y += FS_TITLE() + (int)(10 * SY());
+
+    for (const auto& line : dlg.lines) {
+        y = drawWrapped(line, x, y, mW, FS(), C_TEXT, 4);
+        y += (int)(6 * SY());
+    }
+
+    y += (int)(10 * SY());
+    for (const auto& opt : dlg.options) {
+        DrawText(opt.c_str(), x, y, FS(), C_EXIT);
+        y += LINE_H();
+    }
+
+    if (dlg.options.empty()) {
+        DrawText("(press Enter to continue)", x, y, FS_SMALL(), C_DIM);
+    }
 }
 
 // -----------------------------------------------------------------------
@@ -382,6 +410,7 @@ static void drawMiniMap(const World& world, const Room* current, Rectangle area)
         if (isCurrent) DrawCircleLines((int)c.x, (int)c.y, (int)(markerR * 1.6f) + 2, WHITE);
     }
 }
+
 static void drawPortrait(const World& world, const Player& player) {
     Rectangle panel = { 624 * SX(), 16 * SY(), 160 * SX(), 200 * SY() };
     DrawRectangleRec(panel, C_PANEL);
@@ -395,19 +424,25 @@ static void drawPortrait(const World& world, const Player& player) {
     std::string roomLabel = player.getLocation() ? player.getLocation()->getName() : "";
     DrawText(roomLabel.c_str(), (int)panel.x + (int)(8 * SX()), (int)(panel.y + panel.height - 20 * SY()), (int)(12 * SY()), C_DIM);
 }
+
 // -----------------------------------------------------------------------
 // drawGame — entry point called every frame from main.cpp
 // -----------------------------------------------------------------------
 void drawGame(const World& world, const Player& player,
-              const std::string& inputBuffer, SpriteAnimator& animator) {
+              const std::string& inputBuffer, SpriteAnimator& animator,
+              const DialogueState& dialogue, float playerRelX, float playerRelY) {
     ensureSceneLoaded(world);
     g_scene.update(GetFrameTime());
 
     BeginDrawing();
     ClearBackground(C_BG);
-    drawRoom(player.getLocation(), animator);
+    if (dialogue.active) {
+        drawDialogue(dialogue);
+    } else {
+        drawRoom(player.getLocation(), animator, playerRelX, playerRelY);
+    }
     drawHUD(player);
-    drawPortrait(world, player);  // add this line
+    drawPortrait(world, player);
     drawInputBar(inputBuffer);
     EndDrawing();
 }

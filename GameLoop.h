@@ -4,18 +4,23 @@
 #include <sstream>
 #include <algorithm>
 #include "world.h"
+#include "Entity.h" 
 #include "player.h"
+#include "save.h"
 
 class GameLoop {
 public:
     GameLoop(World& world, Player& player);
     void runFrame(const std::string& input); // process one command if input is ready
     bool isPlaying() const;
+    const DialogueState& getDialogue() const { return dialogue; }
+    bool isInDialogue() const { return dialogue.active; }
 
 private:
     World&  world;
     Player& player;
     bool playing;
+    DialogueState dialogue;
 
     void printSituation() const;
     void showHelp() const;
@@ -38,6 +43,7 @@ private:
     bool cmdSave(const std::string& filename);
     bool cmdLoad(const std::string& filename);
 
+    bool handleDialogueChoice(const std::string& input);
     bool checkWorldProgression(); // returns true if the world advanced a stage
 };
 #endif // GAMELOOP_H
