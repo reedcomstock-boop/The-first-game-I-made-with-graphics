@@ -90,9 +90,11 @@ void World::createWorld() {
     Tool* medpack = new Tool("Med packs", "Medical supplies to keep you from getting too close to death.",0, {0, 0, 0, 5}, 20.0, 5.0);
     
     // --- Place npcs in rooms ---
+  
     campGround->addNpcEntity(newt);
     walls->addNpcEntity(gally);
     glade->addNpcEntity(alby);
+
 
     // --- Place items in rooms ---
     rations->putInRoom(startRoom);

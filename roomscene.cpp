@@ -123,27 +123,48 @@ void RoomSceneManager::loadTilesets(const std::string& assetDir) {
     registerTileset("dungeon", assetDir + "/tiles/Dungeon_Tiles.png");
     defineManualLayouts(); // must come after tilesets are registered — needs their indices
 }
-
 void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
     // Newt — Knight skin (idle 4 frames @32x32, run 6 frames @64x64)
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Knight/Idle-Sheet.png", 4, 0.15f, 32, 32);
-        a.addClip("run",  assetDir + "/npc/Knight/Run-Sheet.png",  6, 0.10f, 64, 64);
+        a.addClip("idle", assetDir + "/npc/Newt/Adventurer Sprite Sheet v1.5.png", 16, 0.15f, 64, 32);
+
         npcAnimators["Newt"] = std::move(a);
     }
-    // Gally and Minho — Rogue skin, placeholder assignment for both
-    for (const std::string name : {"Gally", "Minho"}) {
-        StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Rogue/Idle-Sheet.png", 4, 0.15f, 32, 32);
-        a.addClip("run",  assetDir + "/npc/Rogue/Run-Sheet.png",  6, 0.10f, 64, 64);
-        npcAnimators[name] = std::move(a);
-    }
-    // Pete — green-vest, side-facing only (idle 4 frames, walk 6 frames @64x64)
+    // Gally — Rogue skin
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/pete/Idle_Side-Sheet.png", 4, 0.15f, 64, 64);
-        a.addClip("walk", assetDir + "/npc/pete/Walk_Side-Sheet.png", 6, 0.10f, 64, 64);
+        a.addClip("idle", assetDir + "/npc/Knight/Idle-Sheet.png", 4, 0.15f, 32, 32);
+        a.addClip("run",  assetDir + "/npc/Knight/Run-Sheet.png", 4, 0.10f, 48, 64);
+        npcAnimators["Gally"] = std::move(a);
+    }
+    // Minho — Male Adventurer pack (48x64 frames, 8 per animation)
+    {
+        StripAnimator a;
+        a.addClip("idle", assetDir + "/npc/Minho/Idle/idle_down.png", 8, 0.15f, 48, 64);
+        a.addClip("run",  assetDir + "/npc/Minho/Walk/walk_down.png", 8, 0.10f, 48, 64);
+        npcAnimators["Minho"] = std::move(a);
+    }
+    // Terrisa — Female Adventurer pack (48x64 frames, 8 per animation)
+    {
+        StripAnimator a;
+        a.addClip("idle", assetDir + "/npc/Terrisa/Idle/Idle_Down.png", 8, 0.15f, 48, 64);
+        a.addClip("run",  assetDir + "/npc/Terrisa/Walk/walk_Down.png", 8, 0.10f, 48, 64);
+        npcAnimators["Terrisa"] = std::move(a);
+    }
+    // Alby — Free Adventurer pack (idle/run, 4-direction; using down-facing)
+    {
+        StripAnimator a;
+        a.addClip("idle", assetDir + "/npc/Alby/Archaeologist Sprite Sheet.png", 8, 0.15f, 64, 32);
+        npcAnimators["Alby"] = std::move(a);
+    }
+    // Pete — Archaeologist sheet (idle row, 64x32 frames, 8 per row)
+    {
+        StripAnimator a;
+        a.addClip("idle", assetDir + "/npc/Rogue/Idle-Sheet.png", 4, 0.15f, 64, 32);
+        a.addClip("run",  assetDir + "/npc/Rogue/Run-Sheet.png", 4, 0.15f, 64, 32);
+        a.addClip("attack",  assetDir + "/npc/Pete/Attack.png", 4, 0.15f, 64, 32);
+        
         npcAnimators["Pete"] = std::move(a);
     }
 }
@@ -323,15 +344,21 @@ void RoomSceneManager::drawProps(const std::string& roomName, int originX, int o
 void RoomSceneManager::drawNpcs(const std::vector<NPC*>& npcsInRoom, int originX, int originY,
                                  int viewportW, int viewportH, float scale) const {
     if (npcsInRoom.empty()) return;
-
-    // Evenly spread whoever is actually in the room along a fixed line in the
-    // upper part of the scene — kept separate from Thomas's own draw line
-    // (0.65 of viewport height, set in graphics.cpp) so sprites don't overlap.
     int count = (int)npcsInRoom.size();
     int y = originY + (int)(viewportH * 0.30f);
+
     for (int i = 0; i < count; i++) {
-        auto it = npcAnimators.find(npcsInRoom[i]->getName());
-        if (it == npcAnimators.end()) continue; // no sprite mapped for this NPC yet
+        // 1. Guard against null pointers in the room vector
+        if (npcsInRoom[i] == nullptr) continue; 
+
+        // 2. Fetch the name safely 
+        std::string name = npcsInRoom[i]->getName();                            
+
+        // 3. Look up the animator
+        auto it = npcAnimators.find(name);
+        if (it == npcAnimators.end()) continue; 
+
+        // 4. Calculate coordinates and render cleanly
         int x = originX + (int)(viewportW * (float)(i + 1) / (float)(count + 1));
         it->second.draw(x, y, scale);
     }
