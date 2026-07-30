@@ -5,6 +5,7 @@
 #include <queue>
 #include <unordered_map>
 #include <algorithm>
+#include <array>
 
 // -----------------------------------------------------------------------
 // Layout — computed as a percentage of the CURRENT window size each frame,
@@ -35,10 +36,14 @@ static inline int   FS_SMALL() { return (int)(13   * SY()); }
 
 // Panel rects — percentages of current screen size
 static inline Rectangle ROOM_PANEL() {
-    return { PAD(), PAD(), SW() - PAD()*2.0f, (BASE_SH - 200) * SY() };
+    return { PAD(), PAD(), SW() - PAD()*2.0f - 160, (BASE_SH - 200) * SY() };
+}
+static inline Rectangle MINIMAP_PANEL() {
+    return { 624 * SX(), 16 * SY(), 160 * SX(), 200 * SY() };
 }
 static inline Rectangle HUD_PANEL() {
-    return { PAD(), (BASE_SH - 185) * SY(), SW() - PAD()*2.0f, 100 * SY() };
+    Rectangle map = MINIMAP_PANEL();
+    return { map.x, map.y + map.height + 8 * SY(), map.width, 140 * SY() };
 }
 static inline Rectangle INPUT_PANEL() {
     return { PAD(), (BASE_SH - 75) * SY(), SW() - PAD()*2.0f, 50 * SY() };
@@ -137,10 +142,10 @@ static void drawHUD(const Player& player) {
     Rectangle hudPanel = HUD_PANEL();
     drawPanel(hudPanel, C_PANEL, C_BORDER);
 
-    int x = (int)hudPanel.x + (int)PAD();
+    int x = (int)hudPanel.x + (int)(8 * SX());
     int y = (int)hudPanel.y + (int)(10 * SY());
-    int barW = (int)(180 * SX());
-    int barH = (int)(18  * SY());
+    int barW = std::max(60, (int)((hudPanel.width - 20 * SX()) / 2.0f));
+    int barH = (int)(18 * SY());
 
     // Health bar
     float hpFrac = (player.MaxHealth() > 0)
@@ -149,7 +154,7 @@ static void drawHUD(const Player& player) {
     if (hpFrac > 1.f) hpFrac = 1.f;
     std::string hpLabel = "HP " + std::to_string((int)player.getHealth())
                         + "/" + std::to_string((int)player.MaxHealth());
-    drawBar(x, y, barW, barH, hpFrac, C_HP_BG, C_HP, hpLabel);
+    drawBar(x, y + barH + (int)(SY()), barW+60, barH, hpFrac, C_HP_BG, C_HP, hpLabel);
 
     // Energy bar
     float enFrac = (player.MaxEnergy() > 0)
@@ -158,32 +163,41 @@ static void drawHUD(const Player& player) {
     if (enFrac > 1.f) enFrac = 1.f;
     std::string enLabel = "EN " + std::to_string((int)player.getEnergy())
                         + "/" + std::to_string((int)player.MaxEnergy());
-    drawBar(x + barW + (int)(16 * SX()), y, barW, barH, enFrac, C_EN_BG, C_EN, enLabel);
+    drawBar(x, y + barH + (int)(20 * SY()), barW+60, barH, enFrac, C_EN_BG, C_EN, enLabel);
 
     // Level + name
     std::string lvl = "LVL " + std::to_string(player.getLevel())
                     + "   " + player.getName();
-    DrawText(lvl.c_str(), x + barW*2 + (int)(32 * SX()), y + (int)(2 * SY()), FS(), C_ACCENT);
+    DrawText(lvl.c_str(), x, y, FS_SMALL(), C_ACCENT);
 
     // Combat flash
     if (player.getInCombat()) {
-        int boxW = (int)(136 * SX());
-        int cx = (int)(SW() - PAD() - 130 * SX());
-        DrawRectangle(cx - (int)(6 * SX()), y - (int)(2 * SY()), boxW, barH + (int)(4 * SY()), C_COMBAT);
-        DrawText("[ IN COMBAT ]", cx, y + (int)(2 * SY()), FS_SMALL(), BLACK);
+        int boxW = (int)(hudPanel.width - 16 * SX());
+        int cx = (int)hudPanel.x + (int)(8 * SX());
+        DrawRectangle(cx, y + barH + (int)(28 * SY()), boxW, (int)(18 * SY()), C_COMBAT);
+        DrawText("[ IN COMBAT ]", cx + (int)(6 * SX()), y + barH + (int)(30 * SY()), FS_SMALL(), BLACK);
     }
 
-    // Stats row
-    y += barH + (int)(14 * SY());
-    std::string stats =
-        "STR " + std::to_string((int)player.getStats().strength)  + "   " +
-        "DEX " + std::to_string((int)player.getStats().dexterity) + "   " +
-        "INT " + std::to_string((int)player.getStats().intelligence) + "   " +
-        "DEF " + std::to_string((int)player.getStats().defence);
-    DrawText(stats.c_str(), x, y, FS_SMALL(), C_DIM);
+    // Stats grid: 2 rows x 2 columns
+    int statsY = y + barH + (int)(45 * SY());
+    int statsW = (int)((hudPanel.width - 16 * SX()) / 2.0f);
+    int statsH = (int)(18 * SY());
+    int statsGap = (int)(6 * SY());
+    const std::array<std::pair<std::string, int>, 4> statItems = {{
+        {"STR", (int)player.getStats().strength},
+        {"DEX", (int)player.getStats().dexterity},
+        {"INT", (int)player.getStats().intelligence},
+        {"DEF", (int)player.getStats().defence}
+    }};
 
-    // EXP
-    y += LINE_H() - (int)(4 * SY());
+    for (size_t i = 0; i < statItems.size(); ++i) {
+        int row = (int)(i / 2);
+        int col = (int)(i % 2);
+        int sx = x + col * statsW;
+        int sy = statsY + row * (statsH + statsGap);
+        std::string statText = statItems[i].first + " " + std::to_string(statItems[i].second);
+        DrawText(statText.c_str(), sx, sy, FS_SMALL(), C_DIM);
+    }
 }
 
 // -----------------------------------------------------------------------
@@ -412,7 +426,7 @@ static void drawMiniMap(const World& world, const Room* current, Rectangle area)
 }
 
 static void drawPortrait(const World& world, const Player& player) {
-    Rectangle panel = { 624 * SX(), 16 * SY(), 160 * SX(), 200 * SY() };
+    Rectangle panel = MINIMAP_PANEL();
     DrawRectangleRec(panel, C_PANEL);
     DrawRectangleLinesEx(panel, 1.5f, C_BORDER);
 
