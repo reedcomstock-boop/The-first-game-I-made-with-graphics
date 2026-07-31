@@ -43,7 +43,16 @@ int main() {
     while (!WindowShouldClose() && loop.isPlaying()) {
 
         float dt = GetFrameTime();
-
+        // Keep the window at the same 4:3 aspect ratio the whole layout in
+        // graphics.cpp assumes (BASE_SW:BASE_SH = 800:600). Without this,
+        // dragging to an extreme wide/narrow shape can make width-based and
+        // height-based percentages disagree and panels overflow the window.
+        if (IsWindowResized()) {
+            int w = GetScreenWidth();
+            const float aspect = 800.0f / 600.0f;
+            int correctedH = (int)(w / aspect);
+            SetWindowSize(w, correctedH);
+        }
         // --- Typed input ---
         int ch = GetCharPressed();
         while (ch > 0) {

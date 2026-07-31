@@ -90,28 +90,28 @@ void RoomSceneManager::defineManualLayouts() {
         
     };
     theCage.rows = {
-        "       ##########",
-        "       #........#",
-        "       #........#",
-        "       #........#",
-        "       ##########",
+        "##########",
+        "#........#",
+        "#........#",
+        "#........#",
+        "##########",
     };
     theCage.decorLegend = {
         //feature{ 'D', { dungeonIdx, /* door tile col,row */ } },
-        //{ 'S', { dungeonIdx, /* spike-bar tile col,row */ } },
-        //feature{ 'B', { dungeonIdx, /* banner tile col,row */ } },
+        //feature{ 'S', { dungeonIdx, /* spike-bar tile col,row */ } },
+        { 'B', { dungeonIdx, 108/* chest tile col,row */ } },
         { 'X', { dungeonIdx, 359/* blood stain tile col,row */ } },
         //feature{ 'T', { dungeonIdx, /* torch-topped wall col,row */ } },
         { ' ', { -1, -1 } }, // nothing — floor/wall shows through untouched
     };
     theCage.decorRows = {
-        "       TT######TT",
-        "       D........#",
-        "       #...B.....",
-        "       #....S...X",
-        "       ##########",
+        " TT######TT",
+        " D........#",
+        " #...B.....",
+        " #....S...X",
+        " ##########",
     };
-    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 9, 1 } }; // centered-ish, fits in 4 rows
+    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 6, 1 } }; // centered-ish, fits in 4 rows // the door
     g_manualLayouts["The Cage"] = theCage;
 
 
@@ -127,7 +127,7 @@ void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
     // Newt — Knight skin (idle 4 frames @32x32, run 6 frames @64x64)
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Newt/Adventurer Sprite Sheet v1.5.png", 16, 0.15f, 64, 32);
+        a.addClip("idle", assetDir + "/npc/Newt/Adventurer Sprite Sheet v1.5.png", 16, 0.15f, 32, 32);
 
         npcAnimators["Newt"] = std::move(a);
     }

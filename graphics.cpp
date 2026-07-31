@@ -35,15 +35,17 @@ static inline int   FS_TITLE() { return (int)(22   * SY()); }
 static inline int   FS_SMALL() { return (int)(13   * SY()); }
 
 // Panel rects — percentages of current screen size
-static inline Rectangle ROOM_PANEL() {
-    return { PAD(), PAD(), SW() - PAD()*2.0f - 160, (BASE_SH - 200) * SY() };
-}
 static inline Rectangle MINIMAP_PANEL() {
     return { 624 * SX(), 16 * SY(), 160 * SX(), 200 * SY() };
 }
+static inline Rectangle ROOM_PANEL() {
+    Rectangle map = MINIMAP_PANEL();
+    float gap = 8 * SX();
+    return { PAD(), PAD(), map.x - gap - PAD(), (BASE_SH - 100) * SY() };
+}
 static inline Rectangle HUD_PANEL() {
     Rectangle map = MINIMAP_PANEL();
-    return { map.x, map.y + map.height + 8 * SY(), map.width, 140 * SY() };
+    return { map.x, map.y + map.height + 8 * SY(), map.width, 200 * SY() };
 }
 static inline Rectangle INPUT_PANEL() {
     return { PAD(), (BASE_SH - 75) * SY(), SW() - PAD()*2.0f, 50 * SY() };
@@ -54,9 +56,9 @@ static inline Rectangle INPUT_PANEL() {
 // Expects an "assets" folder next to the binary: assets/tiles, assets/npc, assets/props
 // -----------------------------------------------------------------------
 static const char* ASSET_DIR   = "assets";
-static const float TILE_SCALE  = 2.0f;
+//static const float TILE_SCALE  = 2.0f;
 static const int   TILE_DRAW   = 32;       // 16px source tile * TILE_SCALE
-static const int   SCENE_H     = 150;      // height of the scene viewport inside ROOM_PANEL (base pixels, scaled by SY() at draw time)
+static const int   SCENE_H     = 250;      // height of the scene viewport inside ROOM_PANEL (base pixels, scaled by SY() at draw time)
 static const int   SCENE_COLS  = (int)(BASE_SW - BASE_PAD*2 - BASE_PAD*2) / TILE_DRAW;
 static const int   SCENE_ROWS  = SCENE_H / TILE_DRAW;
 
@@ -179,9 +181,9 @@ static void drawHUD(const Player& player) {
     }
 
     // Stats grid: 2 rows x 2 columns
-    int statsY = y + barH + (int)(45 * SY());
+    int statsY = y + barH + (int)(56 * SY());
     int statsW = (int)((hudPanel.width - 16 * SX()) / 2.0f);
-    int statsH = (int)(18 * SY());
+    int statsH = (int)(25 * SY());
     int statsGap = (int)(6 * SY());
     const std::array<std::pair<std::string, int>, 4> statItems = {{
         {"STR", (int)player.getStats().strength},
@@ -225,13 +227,22 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     // only the surrounding box position/height scale with the window.
     int sceneH = (int)(SCENE_H * SY());
     Rectangle sceneRect = { (float)x, (float)y, (float)mW, (float)sceneH };
+
+    // Always fill the box vertically — never leave black bars top/bottom.
+    // If the resulting width is wider than the panel, we clip it with
+    // scissor mode below rather than shrinking the scale to fit width.
+    float sceneScale = (float)sceneH / (float)(SCENE_ROWS * 16);
+
     DrawRectangleRec(sceneRect, BLACK);
-    g_scene.drawFloor(room->getName(), x, y, TILE_SCALE);
-    g_scene.drawDecor(room->getName(), x, y, TILE_SCALE);
-    g_scene.drawDecorFeatures(room->getName(), x, y, TILE_SCALE);  // doors, banners, structures
-    g_scene.drawProps(room->getName(), x, y, mW, sceneH, TILE_SCALE);
-    g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, sceneH, TILE_SCALE);
+    BeginScissorMode((int)sceneRect.x, (int)sceneRect.y, (int)sceneRect.width, (int)sceneRect.height);
+
+    g_scene.drawFloor(room->getName(), x, y, sceneScale);
+    g_scene.drawDecor(room->getName(), x, y, sceneScale);
+    g_scene.drawDecorFeatures(room->getName(), x, y, sceneScale);  // doors, banners, structures
+    g_scene.drawProps(room->getName(), x, y, mW, sceneH, sceneScale);
+    g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, sceneH, 2.0f);
     thomas.draw(x + (int)(relX * mW), y + (int)(relY * sceneH), 2.0f);
+    EndScissorMode();
     DrawRectangleLinesEx(sceneRect, 1.5f, C_BORDER);
     y += sceneH + (int)(10 * SY());
 
