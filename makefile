@@ -6,7 +6,7 @@ CXXFLAGS += -Isrc
 
 TARGET = Game.exe
 
-OBJS = main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o save.o
+OBJS = main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o save.o sprite.o tileset.o roomscene.o strip_animator.o
 
 .PHONY: all clean
 
