@@ -1,6 +1,7 @@
 #include "graphics.h"
 #include "raylib.h"
 #include "roomscene.h"
+#include "updater.h"
 #include <string>
 #include <queue>
 #include <unordered_map>
@@ -108,7 +109,14 @@ static int drawWrapped(const std::string& text, int x, int y, int maxW,
     }
     return y;
 }
-
+//-----------------------------------------------------------------------
+// drawGameClock
+// -----------------------------------------------------------------------
+/*static void drawGameClock() {
+    int32_t updateCount = Updater::getUpdateCount();
+    std::string text = "Game Clock: " + std::to_string(updateCount);
+    DrawText(text.c_str(), 10, 10, FS_SMALL, WHITE);
+*/
 // -----------------------------------------------------------------------
 // drawHUD
 // -----------------------------------------------------------------------
@@ -370,7 +378,7 @@ void drawGame(const World& world, const Player& player,
               const std::string& inputBuffer, SpriteAnimator& animator) {
     ensureSceneLoaded(world);
     g_scene.update(GetFrameTime());
-
+    //drawGameClock();
     BeginDrawing();
     ClearBackground(C_BG);
     drawRoom(player.getLocation(), animator);
