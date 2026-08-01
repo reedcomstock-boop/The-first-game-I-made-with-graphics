@@ -1,5 +1,7 @@
 #include "GameLoop.h"
 #include "updater.h"
+#include "Entity.h" 
+#include "save.h"
 #include "world.h"
 #include <iostream>
 #include <sstream>
@@ -14,6 +16,10 @@ static std::string toLower(std::string s) {
     return s;
 }
 void GameLoop::runFrame(const std::string& input) {
+    if (dialogue.active) {
+        handleDialogueChoice(input);
+        return;   // swallow input while a conversation is open
+    }
     if (input.empty()) return;
 
     checkWorldProgression();
@@ -30,11 +36,14 @@ void GameLoop::runFrame(const std::string& input) {
     if      (verb == "go")        cmdGo(toLower(arg));
     else if (verb == "pickup")    cmdPickup(toLower(arg));
     else if (verb == "drop")      cmdDrop(toLower(arg));
+    else if (verb == "craft")     cmdCraft(toLower(arg));
     else if (verb == "inventory") cmdInventory();
     else if (verb == "equip")     cmdEquip(toLower(arg));
     else if (verb == "unequip")   cmdUnequip(toLower(arg));
     else if (verb == "attack")    cmdAttack(toLower(arg));
     else if (verb == "look")      cmdLook();
+    else if (verb == "save")      cmdSave(arg.empty() ? "save.json" : arg);
+    else if (verb == "load")      cmdLoad(arg.empty() ? "save.json" : arg);
     else if (verb == "magic")     cmdUseMagic();
     else if (verb == "talk")      cmdTalk(toLower(arg));
     else if (verb == "use")       cmdUseTool(toLower(arg));
@@ -46,55 +55,6 @@ void GameLoop::runFrame(const std::string& input) {
 bool GameLoop::isPlaying() const {
     return playing;
 }
-/*void GameLoop::run() {
-    printSituation();
-
-    while (playing) {
-        checkWorldProgression();
-
-        std::cout << "\nWhat now? ";
-        std::string line;
-        std::getline(std::cin, line);
-        if (line.empty()) continue;
-
-        std::istringstream ss(line);
-        std::string verb;
-        ss >> verb;
-        verb = toLower(verb);
-
-        std::string arg;
-        std::getline(ss, arg);
-        if (!arg.empty() && arg[0] == ' ') arg = arg.substr(1);
-
-        bool success = true;
-
-        if      (verb == "go")        success = cmdGo(toLower(arg));
-        else if (verb == "pickup")    success = cmdPickup(arg);
-        else if (verb == "drop")      success = cmdDrop(arg);
-        else if (verb == "inventory") success = cmdInventory();
-        else if (verb == "equip")     success = cmdEquip(arg);
-        else if (verb == "unequip")   success = cmdUnequip(arg);
-        else if (verb == "attack")    success = cmdAttack(arg);
-        else if (verb == "look")      { cmdLook(); }
-        else if (verb == "magic")     success = cmdUseMagic();
-        else if (verb == "talk")      success = cmdTalk(arg);
-        else if (verb == "use")       success = cmdUseTool(arg);
-        else if (verb == "flee")      { cmdFlee(); }
-        else if (verb == "me")        { cmdMe(); }
-        else if (verb == "help")      { showHelp(); }
-        else if (verb == "exit")      { playing = false; }
-        else {
-            std::cout << "Not a valid command. Type 'help' for a list.\n";
-            success = false;
-        }
-
-        if (success && verb == "go") printSituation();
-    }
-
-    std::cout << "\nYour strength finally gives out.\n"
-              << "With no path left to take, you fall to the Maze floor.\n"
-              << "Your journey ends here — unfinished, but not forgotten.\n";
-}*/
 void GameLoop::printSituation() const {
     Room* loc = player.getLocation();
     if (!loc) return;
@@ -128,6 +88,7 @@ void GameLoop::showHelp() const {
               << "pickup <item>        -- pick up an item\n"
               << "drop <item>          -- drop an item from your inventory\n"
               << "inventory            -- list everything you're carrying\n"
+              << "craft <item>         -- craft gear from materials (near Newt)\n"
               << "use <Tool>           -- use a tool in your inventory\n"
               << "equip <item>         -- equip a tool to gain its stat bonuses\n"
               << "unequip <item>       -- remove a tool's bonuses\n"
@@ -136,6 +97,8 @@ void GameLoop::showHelp() const {
               << "flee                 -- attempt to flee from combat\n"
               << "magic                -- use magic against a monster (if you have it)\n"
               << "me                   -- check your current stats and objective\n"
+              << "save <filename>      -- save your game (default: save.json)\n"
+              << "load <filename>      -- load a saved game (default: save.json)\n"
               << "help                 -- show this list\n"
               << "exit                 -- quit the game\n\n";
 }
@@ -147,9 +110,8 @@ bool GameLoop::cmdGo(const std::string& direction) {
     }
     Room* current = player.getLocation();
     if (current->getName() == "The Walls" && direction == "north") {
-        if (world.getWorldLevel() < 3) {
+        if (player.getLevel() < 2) {
             std::cout << "\nGally steps in front of you.\n";
-            //if 
             std::cout << "Gally: 'Where do you think you're going Greenie? You got a Death Wish or something? Only Runners are allowed to go through the Maze. You need to prove yourself first.'\n";
             std::cout << "You're not a runner yet. Go talk to Newt.'\n";
             return false;
@@ -178,7 +140,6 @@ bool GameLoop::cmdGo(const std::string& direction) {
     return true;
 }
 bool GameLoop::cmdLook()const{
-    //Room* currentRoom = player.getLocation();
     std::cout << "you look around and see ";
     printSituation();
     return true;
@@ -249,7 +210,7 @@ bool GameLoop::cmdEquip(const std::string& itemName){
          if (toLower(item->getName()) == toLower(itemName)) {
             Tool* tool = dynamic_cast<Tool*>(item);
             if (!tool) {
-                std::cout << tool->getName() << " is not a tool.\n";
+                std::cout << item->getName() << " is not a tool.\n";
                 return false;
             }
             player.equipItem(tool);
@@ -307,20 +268,38 @@ bool GameLoop::cmdFlee() {
     return true;
 }
 bool GameLoop::cmdTalk(const std::string& npcName) {
-    Room* loc = player.getLocation();
-    if (!loc) return false;
-
-    NPC* target = loc->getNpcByName(npcName);
-    if (!target) {
-        std::cout << "There is no one called '" << npcName << "' here.\n";
+    if (!player.getLocation()) {
+        std::cout << "You're nowhere — can't talk to anyone.\n";
         return false;
     }
+    NPC* npc = player.getLocation()->getNpcByName(npcName);
+    if (!npc) {
+        std::cout << "There's no one here by that name.\n";
+        return false;
+    }
+    npc->talk(player, dialogue);
+    return true;
+}
+// New: called from runFrame() when the player types a single letter (a/b/c/d)
+// while dialogue.active is true and dialogue has pending options.
+bool GameLoop::handleDialogueChoice(const std::string& input) {
+    if (!dialogue.active) return false;
 
-    target->talk(player);
-    std::cout << "\nPress enter to continue...";
-    std::string pause;
-    std::getline(std::cin, pause);
-    printSituation();
+    if (dialogue.options.empty()) {
+        // No choice pending — any input just dismisses the current page
+        if (dialogue.clear_after) dialogue.clear();
+        return true;
+    }
+
+    std::string c = input;
+    std::transform(c.begin(), c.end(), c.begin(), ::tolower);
+    if (c.size() != 1 || c[0] < 'a') return false;
+    int choiceIndex = c[0] - 'a';
+    if (choiceIndex < 0 || choiceIndex >= (int)dialogue.options.size()) return false;
+
+    if (dialogue.npc) {
+        dialogue.npc->continueTalk(player, dialogue, choiceIndex);
+    }
     return true;
 }
 bool GameLoop::cmdUseMagic() {
@@ -330,6 +309,54 @@ bool GameLoop::cmdUseMagic() {
     }
     player.useMagic();
     return true;
+}
+bool GameLoop::cmdCraft(const std::string& itemName) {
+    Room* loc = player.getLocation();
+    if (!loc) return false;
+
+    if (!loc->getNpcByName("Newt")) {
+        std::cout << "There's no one here to help you craft anything.\n";
+        return false;
+    }
+
+    Tool* crafted = nullptr;
+
+    if (itemName == "sword" && player.hasItem("metal") && player.hasItem("stick")) {
+        crafted = player.craftItem("Sword",
+            "a sword made of scrap metal and tied together with newts leather",
+            1.0, {10, 15, 5, 5}, 0.0, 0.0);
+        player.removeItem("metal");
+        player.removeItem("stick");
+    }
+    else if (itemName == "spear" && player.hasItem("rock") && player.hasItem("stick")) {
+        crafted = player.craftItem("Spear",
+            "a spear made of a chunk of obsidian and a pole tied together with newts leather",
+            1.0, {15, 10, 3, 8}, 0.0, 0.0);
+        player.removeItem("rock");
+        player.removeItem("stick");
+    }
+    else if (itemName == "armor" && player.hasItem("cloth") && player.hasItem("leather")) {
+        crafted = player.craftItem("Armor",
+            "a suit of armor made of cloth and leather scraps tied together with newts know-how",
+            1.0, {5, 5, 5, 15}, 0.0, 0.0);
+        player.removeItem("cloth");
+        player.removeItem("leather");
+    }
+
+    if (crafted) {
+        player.PickUpItem(crafted);
+        std::cout << "\nYou watch as Newt crafts a " << crafted->getName() << " for you.\n";
+        return true;
+    }
+
+    std::cout << "\nNewt: 'You don't have the materials for that.'\n";
+    return false;
+}
+bool GameLoop::cmdSave(const std::string& filename) {
+    return SaveManager::saveGame(filename, player, world);
+}
+bool GameLoop::cmdLoad(const std::string& filename) {
+    return SaveManager::loadGame(filename, player, world);
 }
 bool GameLoop::cmdMe() const {
     std::cout << "\n--- Status ---\n";
@@ -370,31 +397,104 @@ bool GameLoop::cmdMe() const {
 }
     return true;
 }
-void GameLoop::checkWorldProgression() {
-    int wl = world.getWorldLevel();
+bool GameLoop::checkWorldProgression() {
+    WorldStage wl = world.getWorldLevel();
     int pl = player.getLevel();
     Room* loc = player.getLocation();
-    if (!loc) return;
+    if (!loc) return false;
 
-    // Player has explored enough — evolve the world
-    if (pl >= 1 && wl == 1) {
-        world.setWorldLevel(2);
+    bool changed = false;
+
+    // Stage 1 -> 2: talked Newt through to level 1 -> camp/shed/infirmary expand,
+    // Minho + Pete show up.
+    if (pl >= 1 && wl == WorldStage::Glade) {
+        world.setWorldLevel(WorldStage::CampExpanded);
         world.createWorldLvlTwo();
         std::cout << "\n[The world shifts around you — things are changing...]\n";
+        changed = true;
     }
 
-    // Player enters the maze for the first time
-    if (loc->getName() == "The Maze" && wl == 2) {
-        world.setWorldLevel(3);
+    // Stage 2 -> 3: first trip into the maze with Alby + Minho -> First Griever
+    // encounter (branch point: kill it or flee/betray).
+    if (loc->getName() == "The Maze" && wl == WorldStage::CampExpanded) {
+        world.setWorldLevel(WorldStage::MazeOpen);
         world.createMaze();
-        std::cout << "\n[The maze opens before you...]\n";
+        world.createFirstGrieverEncounter();
+        std::cout << "\n[The maze opens before you. Alby and Minho fall in step beside you...]\n";
+        changed = true;
     }
 
-    // Player reaches level 2 — maze gets harder
-    if (pl >= 2 && wl == 3) {
-        world.setWorldLevel(4);
+    // Stage 3 -> 4: back at the Glade after the first encounter (killed or fled)
+    // -> discover the safe zone is broken, the maze doesn't seal at night anymore.
+    if (wl == WorldStage::MazeOpen && loc->getName() == "The Glade" &&
+        (player.getFirstGrieverDefeated() || player.getBetrayedFriends())) {
+        world.setWorldLevel(WorldStage::SafeZoneBroken);
+        world.createSafeZoneBreach();
+        std::cout << "\n[Something's wrong. The walls haven't moved. The Glade isn't safe anymore.]\n";
+        changed = true;
+    }
+
+    // Stage 4 -> 5: Terrisa arrives, now through the Cage.
+    if (wl == WorldStage::SafeZoneBroken && loc->getName() == "The Cage") {
+        world.setWorldLevel(WorldStage::TerrisaArrives);
+        world.createTerrisaArrival();
+        std::cout << "\n[A girl stumbles out of the hatch, unconscious...]\n";
+        changed = true;
+    }
+
+    // Stage 5 -> 6: Minho + Newt walk the player through the maze-phase map.
+    if (wl == WorldStage::TerrisaArrives && pl >= 2) {
+        world.setWorldLevel(WorldStage::MapRevealed);
+        world.createMapReveal();
+        std::cout << "\n[Minho and Newt lay out the map of the maze's phases for you.]\n";
+        changed = true;
+    }
+
+    // Stage 6 -> 7: after more crafting/training, heading back into the maze
+    // triggers the phase-two reconfiguration (new rooms + extra grievers).
+    if (wl == WorldStage::MapRevealed && loc->getName() == "The Maze") {
+        world.setWorldLevel(WorldStage::MazePhaseTwo);
         world.createMazePhaseTwo();
         std::cout << "\n[The maze reconfigures itself around you...]\n";
+        changed = true;
     }
-}
 
+    // Stage 7 -> 8: player + Minho reach the sealed exit door.
+    if (wl == WorldStage::MazePhaseTwo && loc->getName() == "Maze7") {
+        world.setWorldLevel(WorldStage::MazeExitFound);
+        std::cout << "\n[You and Minho find a massive sealed door. It won't budge — not yet.]\n";
+        changed = true;
+    }
+
+    // Stage 8 -> 9: on the way back, the First Griever (or its corpse) again.
+    if (wl == WorldStage::MazeExitFound && loc->getName() == "Maze5") {
+        world.setWorldLevel(WorldStage::GrieverReturnEncounter);
+        world.createGrieverReturnEncounter();
+        if (player.getFirstGrieverDefeated())
+            std::cout << "\n[You find the First Griever's corpse still slumped where you left it.]\n";
+        else
+            std::cout << "\n[The First Griever is still out there — and it's found you again.]\n";
+        changed = true;
+    }
+
+    // Stage 9 -> 10: remains/venom brought back to camp, Terrisa pushes the choice.
+    if (wl == WorldStage::GrieverReturnEncounter &&
+        (loc->getName() == "The Camp Ground" || loc->getName() == "The Infirmary") &&
+        (player.hasItem("Griever Remains") || player.getHarvestedVenom() || player.getFirstGrieverDefeated())) {
+        world.setWorldLevel(WorldStage::FinalPreparation);
+        world.createFinalPreparation();
+        std::cout << "\n[Terrisa meets you at camp, eyeing what you brought back.]\n";
+        changed = true;
+    }
+
+    // Stage 10 -> 11: player took the venom (EMP power) -> rally the helpers for
+    // the final push into the maze.
+    if (wl == WorldStage::FinalPreparation && player.hasMagic()) {
+        world.setWorldLevel(WorldStage::FinalAssault);
+        world.createFinalAssault();
+        std::cout << "\n[The helpers gather. It's time to finish what the maze started.]\n";
+        changed = true;
+    }
+
+    return changed;
+}

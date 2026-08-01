@@ -44,23 +44,38 @@ public:
     void fleeComnbat();
     void setInCombat(bool combat);
 
-    int32_t getLevel() const;
-    void checkLevelUp();
-    double getExp();
+    int32_t getLevel() const;      // now const, no side effects
     double getExpToNextLevel();
-    void setExp(double exp);
+    double getExp() const;
+    void setExp(double amt);       // level-up logic moves here    double getExp();
 
+    void setStats(const Stats& s);
+
+    // Used only by SaveManager to restore level/exp state directly on load,
+    // bypassing the level-up side effects that setExp() triggers.
+    void restoreProgress(int32_t lvl, double currentExp, double expToNextLvl);
 
     Tool* craftItem(const std::string& name, const std::string& description, double level, const Stats& stats, double health, double energy);
 
     int32_t getDiologueProgress() const ;
     void setDiologueProgress(int32_t progress) ;
 
+    // Story-branch flags (set by combat outcomes / GameLoop, read by
+    // World::createGrieverReturnEncounter and NPC dialogue stubs)
+    bool getFirstGrieverDefeated() const;
+    void setFirstGrieverDefeated(bool v);
+    bool getBetrayedFriends() const;
+    void setBetrayedFriends(bool v);
+    bool getHarvestedVenom() const;
+    void setHarvestedVenom(bool v);
+
 private:
     // Additional player-specific attributes can be added here
     bool isAlive;
     bool magic;
     double maxHealth;
+    double baseHealth;
+
     double maxEnergy;
     double exp;
     double experienceToLevelUp;
@@ -71,6 +86,10 @@ private:
     std::vector<Item*> inventory;                  // everything picked up
     std::vector<Item*> equippedItems;              // only what's equipped
     Room*location;
+
+    bool firstGrieverDefeated = false;
+    bool betrayedFriends = false;
+    bool harvestedVenom = false;
 };
 
 #endif // PLAYER_H
