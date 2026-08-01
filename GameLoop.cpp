@@ -22,6 +22,9 @@ void GameLoop::runFrame(const std::string& input) {
     }
     if (input.empty()) return;
 
+    Updater::incrementUpdateCount();   // every real command ticks the clock
+    Updater::convertUpdatesIntoGameClock();
+
     checkWorldProgression();
 
     std::istringstream ss(input);

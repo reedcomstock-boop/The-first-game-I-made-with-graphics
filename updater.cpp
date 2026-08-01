@@ -32,6 +32,7 @@ void Updater::incrementUpdateCount() {
     updateCount++;
 }
 void Updater::updateAll() {
+     
     for (Updatable* entity : entities) {
         entity->update();
     }

@@ -1,6 +1,7 @@
 #include "graphics.h"
 #include "raylib.h"
 #include "roomscene.h"
+#include "updater.h"
 #include <string>
 #include <queue>
 #include <unordered_map>
@@ -19,14 +20,14 @@
 // below), so on a bigger window you'll see more black margin around the
 // scene rather than the tiles themselves growing.
 // -----------------------------------------------------------------------
-static const int BASE_SW = 800;
-static const int BASE_SH = 600;
+static const int BASE_ScreenWidth = 800;
+static const int BASE_ScreenHigh = 600;
 static const int BASE_PAD = 16;
 
-static inline float SW() { return (float)GetScreenWidth(); }
-static inline float SH() { return (float)GetScreenHeight(); }
-static inline float SX() { return SW() / (float)BASE_SW; }  // width scale factor
-static inline float SY() { return SH() / (float)BASE_SH; }  // height scale factor
+static inline float ScreenWidth() { return (float)GetScreenWidth(); } 
+static inline float ScreenHeight() { return (float)GetScreenHeight(); }
+static inline float SX() { return ScreenWidth() / (float)BASE_ScreenWidth; }  // width scale factor
+static inline float SY() { return ScreenHeight() / (float)BASE_ScreenHigh; }  // height scale factor
 
 static inline float PAD()      { return BASE_PAD   * SX(); }
 static inline int   LINE_H()   { return (int)(22   * SY()); }
@@ -41,14 +42,19 @@ static inline Rectangle MINIMAP_PANEL() {
 static inline Rectangle ROOM_PANEL() {
     Rectangle map = MINIMAP_PANEL();
     float gap = 8 * SX();
-    return { PAD(), PAD(), map.x - gap - PAD(), (BASE_SH - 100) * SY() };
+    return { PAD(), PAD(), map.x - gap - PAD(), (BASE_ScreenHigh - 100) * SY() };
 }
 static inline Rectangle HUD_PANEL() {
     Rectangle map = MINIMAP_PANEL();
     return { map.x, map.y + map.height + 8 * SY(), map.width, 200 * SY() };
 }
 static inline Rectangle INPUT_PANEL() {
-    return { PAD(), (BASE_SH - 75) * SY(), SW() - PAD()*2.0f, 50 * SY() };
+    return { PAD(), (BASE_ScreenHigh - 75) * SY(), ScreenWidth() - PAD()*2.0f, 50 * SY() };
+}
+
+ 
+static inline Rectangle GameClock_PANEL() {
+    return { PAD(), PAD(), 100 * SX(), 50 * SY() };
 }
 
 // -----------------------------------------------------------------------
@@ -58,9 +64,9 @@ static inline Rectangle INPUT_PANEL() {
 static const char* ASSET_DIR   = "assets";
 //static const float TILE_SCALE  = 2.0f;
 static const int   TILE_DRAW   = 32;       // 16px source tile * TILE_SCALE
-static const int   SCENE_H     = 250;      // height of the scene viewport inside ROOM_PANEL (base pixels, scaled by SY() at draw time)
-static const int   SCENE_COLS  = (int)(BASE_SW - BASE_PAD*2 - BASE_PAD*2) / TILE_DRAW;
-static const int   SCENE_ROWS  = SCENE_H / TILE_DRAW;
+static const int   SCENE_HEIGHT     = 250;      // height of the scene viewport inside ROOM_PANEL (base pixels, scaled by SY() at draw time)
+static const int   SCENE_COLS  = (int)(BASE_ScreenWidth - BASE_PAD*2 - BASE_PAD*2) / TILE_DRAW;
+static const int   SCENE_ROWS  = SCENE_HEIGHT / TILE_DRAW;
 
 static RoomSceneManager g_scene;
 static bool g_sceneLoaded = false;
@@ -140,7 +146,9 @@ static int drawWrapped(const std::string& text, int x, int y, int maxW,
 // drawGameTime
 // -----------------------------------------------------------------------
 static void drawGameClock() {
+    Rectangle GameTime = GameClock_PANEL();
     int32_t updateCount = Updater::getUpdateCount();
+    drawPanel(GameTime, C_PANEL, C_BORDER);
     std::string text = "Game Clock: " + std::to_string(updateCount);
     DrawText(text.c_str(), 10, 10, FS_SMALL(), WHITE);
 }
@@ -230,9 +238,9 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     y += (int)(10 * SY());
 
     // Scene viewport: tile background, animated props, NPCs, Thomas.
-    // Tile art itself stays at its native size (see note near SCENE_H above) —
+    // Tile art itself stays at its native size (see note near SCENE_HEIGHT above) —
     // only the surrounding box position/height scale with the window.
-    int sceneH = (int)(SCENE_H * SY());
+    int sceneH = (int)(SCENE_HEIGHT * SY());
     Rectangle sceneRect = { (float)x, (float)y, (float)mW, (float)sceneH };
 
     // Always fill the box vertically — never leave black bars top/bottom.
