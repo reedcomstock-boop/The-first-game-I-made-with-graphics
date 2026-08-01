@@ -136,8 +136,15 @@ static int drawWrapped(const std::string& text, int x, int y, int maxW,
     }
     return y;
 }
-
 // -----------------------------------------------------------------------
+// drawGameTime
+// -----------------------------------------------------------------------
+static void drawGameClock() {
+    int32_t updateCount = Updater::getUpdateCount();
+    std::string text = "Game Clock: " + std::to_string(updateCount);
+    DrawText(text.c_str(), 10, 10, FS_SMALL(), WHITE);
+}
+
 // drawHUD
 // -----------------------------------------------------------------------
 static void drawHUD(const Player& player) {
@@ -458,7 +465,7 @@ void drawGame(const World& world, const Player& player,
               const DialogueState& dialogue, float playerRelX, float playerRelY) {
     ensureSceneLoaded(world);
     g_scene.update(GetFrameTime());
-
+    drawGameClock();
     BeginDrawing();
     ClearBackground(C_BG);
     if (dialogue.active) {
