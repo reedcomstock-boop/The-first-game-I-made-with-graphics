@@ -15,7 +15,7 @@ public:
     bool isPlaying() const;
     const DialogueState& getDialogue() const { return dialogue; }
     bool isInDialogue() const { return dialogue.active; }
-
+    void scrollDialogueHistory(int delta);   // delta: -1 = older, +1 = newer
 private:
     World&  world;
     Player& player;

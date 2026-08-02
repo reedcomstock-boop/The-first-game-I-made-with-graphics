@@ -5,6 +5,7 @@
 #include "world.h"
 #include <iostream>
 #include <sstream>
+#include <cctype>
 #include <algorithm>
 
 GameLoop::GameLoop(World& world, Player& player)
@@ -18,8 +19,9 @@ static std::string toLower(std::string s) {
 void GameLoop::runFrame(const std::string& input) {
     if (dialogue.active) {
         handleDialogueChoice(input);
-        return;   // swallow input while a conversation is open
-    }
+        return;
+    }   // swallow input while a conversation is open
+    
     if (input.empty()) return;
 
     Updater::incrementUpdateCount();   // every real command ticks the clock
@@ -106,19 +108,29 @@ void GameLoop::showHelp() const {
               << "exit                 -- quit the game\n\n";
 }
 bool GameLoop::cmdGo(const std::string& direction) {
+    Room* current = player.getLocation();
+
+    if (current && current->getName() == "The Walls" && direction == "north") {
+        if (player.getLevel() < 2) {
+            dialogue.active = true;
+            dialogue.speaker = "Gally";
+            dialogue.lines = {
+                "Gally steps in front of you.",
+                "Gally: 'Where do you think you're going Greenie? You got a Death Wish or something? Only Runners are allowed to go through the Maze. You need to prove yourself first.'",
+                "You're not a runner yet. Go talk to Newt."
+            };
+            dialogue.options.clear();
+            dialogue.npc = current->getNpcByName("Gally");  // nullptr is fine here — see note below
+            dialogue.clear_after = true;
+            dialogue.recordHistory();
+            return false;
+        }
+    }
+
     Room* nextRoom = player.goDirection(direction);
     if (!nextRoom) {
         std::cout << "You can't go that way.\n";
         return false;
-    }
-    Room* current = player.getLocation();
-    if (current->getName() == "The Walls" && direction == "north") {
-        if (player.getLevel() < 2) {
-            std::cout << "\nGally steps in front of you.\n";
-            std::cout << "Gally: 'Where do you think you're going Greenie? You got a Death Wish or something? Only Runners are allowed to go through the Maze. You need to prove yourself first.'\n";
-            std::cout << "You're not a runner yet. Go talk to Newt.'\n";
-            return false;
-        }
     }
 
     // Check if any monsters are in the new room
@@ -281,15 +293,14 @@ bool GameLoop::cmdTalk(const std::string& npcName) {
         return false;
     }
     npc->talk(player, dialogue);
+    dialogue.recordHistory();   // <-- add this
     return true;
 }
-// New: called from runFrame() when the player types a single letter (a/b/c/d)
-// while dialogue.active is true and dialogue has pending options.
+
 bool GameLoop::handleDialogueChoice(const std::string& input) {
     if (!dialogue.active) return false;
 
     if (dialogue.options.empty()) {
-        // No choice pending — any input just dismisses the current page
         if (dialogue.clear_after) dialogue.clear();
         return true;
     }
@@ -302,8 +313,15 @@ bool GameLoop::handleDialogueChoice(const std::string& input) {
 
     if (dialogue.npc) {
         dialogue.npc->continueTalk(player, dialogue, choiceIndex);
+        dialogue.recordHistory();   // <-- add this
     }
     return true;
+}
+
+void GameLoop::scrollDialogueHistory(int delta) {
+    if (!dialogue.active || dialogue.history.empty()) return;
+    int maxOffset = std::max(0, (int)dialogue.history.size() - 1);
+    dialogue.scrollOffset = std::clamp(dialogue.scrollOffset + delta, 0, maxOffset);
 }
 bool GameLoop::cmdUseMagic() {
     if (!player.getInCombat()) {

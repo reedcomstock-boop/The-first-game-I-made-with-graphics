@@ -53,8 +53,13 @@ static inline Rectangle INPUT_PANEL() {
 }
 
  
-static inline Rectangle GameClock_PANEL() {
-    return { PAD(), PAD(), 100 * SX(), 50 * SY() };
+static inline Rectangle Game_Clock_PANEL() {
+    Rectangle hud   = HUD_PANEL();
+    Rectangle input = INPUT_PANEL();
+    float gap = 8 * SY();
+    float top    = hud.y + hud.height + gap;
+    float bottom = input.y - gap;
+    return { hud.x, top, hud.width, bottom - top };
 }
 
 // -----------------------------------------------------------------------
@@ -143,16 +148,25 @@ static int drawWrapped(const std::string& text, int x, int y, int maxW,
     return y;
 }
 // -----------------------------------------------------------------------
-// drawGameTime
+// drawGameClock
 // -----------------------------------------------------------------------
 static void drawGameClock() {
-    Rectangle GameTime = GameClock_PANEL();
-    int32_t updateCount = Updater::getUpdateCount();
-    drawPanel(GameTime, C_PANEL, C_BORDER);
-    std::string text = "Game Clock: " + std::to_string(updateCount);
-    DrawText(text.c_str(), 10, 10, FS_SMALL(), WHITE);
-}
+    Rectangle clockPanel = Game_Clock_PANEL();
+    drawPanel(clockPanel, C_PANEL, C_BORDER);
 
+    int32_t gameClock = Updater::getGameClock();
+    int32_t updateCount = Updater::getUpdateCount();
+    std::string text = "Game Clock: " + std::to_string(gameClock) + ":" + std::to_string(updateCount * 19);
+    int textX = (int)clockPanel.x + (int)(8 * SX());
+    int textY = (int)(clockPanel.y + (clockPanel.height - FS_SMALL()) / 2.0f);
+    DrawText(text.c_str(), textX, textY, FS(), WHITE);
+    
+    std::string text2 = std::to_string(gameClock) + ":" + std::to_string(updateCount * 19);
+    //int textX2 = (int)clockPanel.x + (int)(8 * SX());
+    //int textY2 = (int)(clockPanel.y  + 10 + (clockPanel.height - FS_SMALL()) / 2.0f);
+    //DrawText(text2.c_str(), textX2, textY2, FS_(), WHITE);
+}
+// -----------------------------------------------------------------------
 // drawHUD
 // -----------------------------------------------------------------------
 static void drawHUD(const Player& player) {
@@ -314,15 +328,32 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
 // -----------------------------------------------------------------------
 static void drawDialogue(const DialogueState& dlg) {
     if (!dlg.active) return;
-    Rectangle panel = ROOM_PANEL(); // reuse the room panel's footprint
+    Rectangle panel = ROOM_PANEL();
     drawPanel(panel, C_PANEL, C_ACCENT);
 
     int x = (int)panel.x + (int)PAD();
     int y = (int)panel.y + (int)PAD();
     int mW = (int)panel.width - (int)PAD() * 2;
 
+    bool viewingHistory = dlg.scrollOffset > 0;
+
     DrawText(dlg.speaker.c_str(), x, y, FS_TITLE(), C_ACCENT);
     y += FS_TITLE() + (int)(10 * SY());
+
+    if (viewingHistory) {
+        // Show a scrolled-back slice of the transcript instead of the live page.
+        DrawText("(scrolled back — press Down to return, Up for older)",
+                 x, y, FS_SMALL(), C_DIM);
+        y += LINE_H();
+
+        int endIdx   = std::max(0, (int)dlg.history.size() - dlg.scrollOffset);
+        int startIdx = std::max(0, endIdx - 5);   // show up to 5 transcript entries at a time
+        for (int i = startIdx; i < endIdx; i++) {
+            y = drawWrapped(dlg.history[i], x, y, mW, FS(), C_TEXT, 3);
+            y += (int)(4 * SY());
+        }
+        return;   // options never show while scrolled back — they belong to the live page
+    }
 
     for (const auto& line : dlg.lines) {
         y = drawWrapped(line, x, y, mW, FS(), C_TEXT, 4);
@@ -337,6 +368,9 @@ static void drawDialogue(const DialogueState& dlg) {
 
     if (dlg.options.empty()) {
         DrawText("(press Enter to continue)", x, y, FS_SMALL(), C_DIM);
+    } else {
+        DrawText("(Up arrow to scroll back through this conversation)",
+                 x, y, FS_SMALL(), C_DIM);
     }
 }
 

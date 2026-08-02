@@ -84,6 +84,9 @@ void Room::addNpcEntity(NPC* npc) {
     if (!npc) return;
     if (std::find(npcEntities.begin(), npcEntities.end(), npc) != npcEntities.end()) return;
     npcEntities.push_back(npc);
+    if (Monster* m = dynamic_cast<Monster*>(npc)) {
+        monsterEntities.push_back(m);
+    }
 }
 NPC* Room::getNpcByName(const std::string& name) const {
     std::string target = name;

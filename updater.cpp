@@ -28,6 +28,10 @@ int32_t Updater::getUpdateCount() {
 void Updater::resetUpdateCount() {
     updateCount = 0;
 }
+
+int32_t Updater::getGameClock() {
+    return gameClock;
+}
 void Updater::incrementUpdateCount() {
     updateCount++;
 }
