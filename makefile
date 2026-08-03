@@ -33,6 +33,16 @@ GameLoop.o: GameLoop.cpp GameLoop.h
 	$(CXX) -c GameLoop.cpp $(CFLAGS)
 graphics.o: graphics.cpp graphics.h
 	$(CXX) -c graphics.cpp $(CFLAGS)
+sprite.o: sprite.cpp
+	$(CXX) -c sprite.cpp $(CFLAGS)
+tileset.o: tileset.cpp tileset.h
+	$(CXX) -c tileset.cpp $(CFLAGS)
+strip_animator.o: strip_animator.cpp strip_animator.h
+	$(CXX) -c strip_animator.cpp $(CFLAGS)
+roomscene.o: roomscene.cpp roomscene.h
+	$(CXX) -c roomscene.cpp $(CFLAGS)
+save.o: save.cpp save.h
+	$(CXX) -c save.cpp $(CFLAGS)
 save.o: save.cpp save.h
 	$(CXX) -c save.cpp $(CFLAGS)
 

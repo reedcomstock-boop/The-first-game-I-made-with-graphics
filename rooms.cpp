@@ -12,15 +12,7 @@ Room::Room(const std::string& name,
 {
 }
 
-Room::~Room()
-{
-    for (Item* item : items) {
-        delete item;
-    }
-    for (NPC* npc : npcEntities) {
-        delete npc;
-    }
-}
+Room::~Room() = default;
 
 std::string Room::getName() const
 {
@@ -69,6 +61,8 @@ void Room::setDescription(const std::string& description)
 
 void Room::addItem(Item* item)
 {
+    if (!item) return;
+    if (std::find(items.begin(), items.end(), item) != items.end()) return;
     items.push_back(item);
 }
 
@@ -87,6 +81,8 @@ const std::vector<NPC*>& Room::getNpcEntities() const {
     return npcEntities;
 }
 void Room::addNpcEntity(NPC* npc) {
+    if (!npc) return;
+    if (std::find(npcEntities.begin(), npcEntities.end(), npc) != npcEntities.end()) return;
     npcEntities.push_back(npc);
 }
 NPC* Room::getNpcByName(const std::string& name) const {
