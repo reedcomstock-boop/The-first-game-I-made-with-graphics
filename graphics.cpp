@@ -147,8 +147,15 @@ static int32_t drawWrapped(const std::string& text, int32_t x, int32_t y, int32_
     }
     return y;
 }
-// -----------------------------------------------------------------------
+//-----------------------------------------------------------------------
 // drawGameClock
+// -----------------------------------------------------------------------
+/*static void drawGameClock() {
+    int32_t updateCount = Updater::getUpdateCount();
+    std::string text = "Game Clock: " + std::to_string(updateCount);
+    DrawText(text.c_str(), 10, 10, FS_SMALL, WHITE);
+*/// -----------------------------------------------------------------------
+// drawGameTime
 // -----------------------------------------------------------------------
 static void drawGameClock() {
     Rectangle clockPanel = Game_Clock_PANEL();
@@ -525,7 +532,7 @@ void drawGame(const World& world, const Player& player,
               const DialogueState& dialogue, float playerRelX, float playerRelY) {
     ensureSceneLoaded(world);
     g_scene.update(GetFrameTime());
-    drawGameClock();
+    drawGameClock();    //drawGameClock();
     BeginDrawing();
     ClearBackground(C_BG);
     if (dialogue.active) {
