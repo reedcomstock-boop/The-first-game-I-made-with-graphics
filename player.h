@@ -76,6 +76,11 @@ private:
     double maxHealth;
     double baseHealth;
 
+    void threat(NPC* threat, CombatState& out);//make the code for this
+    void attack(NPC* target, CombatState& out);//make the code for this
+    void fleeComnbat(CombatState& out);//make the code for this
+    void useMagic(CombatState& out); //make the code for this
+    
     double maxEnergy;
     double exp;
     double experienceToLevelUp;
