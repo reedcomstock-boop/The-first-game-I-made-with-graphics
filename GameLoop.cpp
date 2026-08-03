@@ -86,26 +86,29 @@ void GameLoop::printSituation() const {
     std::cout << "> " << e.first << " {" << e.second->getName() << "} \n";
 }
 
-void GameLoop::showHelp() const {
-    std::cout << "\n--- Commands ---\n"
-              << "go <direction>       -- move (north / south / east / west / up / down)\n"
-              << "look                 -- describe the current room\n"
-              << "pickup <item>        -- pick up an item\n"
-              << "drop <item>          -- drop an item from your inventory\n"
-              << "inventory            -- list everything you're carrying\n"
-              << "craft <item>         -- craft gear from materials (near Newt)\n"
-              << "use <Tool>           -- use a tool in your inventory\n"
-              << "equip <item>         -- equip a tool to gain its stat bonuses\n"
-              << "unequip <item>       -- remove a tool's bonuses\n"
-              << "talk <npc>           -- talk to an NPC\n"
-              << "attack <monster>     -- fight a monster\n"
-              << "flee                 -- attempt to flee from combat\n"
-              << "magic                -- use magic against a monster (if you have it)\n"
-              << "me                   -- check your current stats and objective\n"
-              << "save <filename>      -- save your game (default: save.json)\n"
-              << "load <filename>      -- load a saved game (default: save.json)\n"
-              << "help                 -- show this list\n"
-              << "exit                 -- quit the game\n\n";
+void GameLoop::showHelp() {
+    dialogue.active = true;
+    dialogue.speaker = "--- Commands ---";
+    dialogue.lines = {
+        "go <direction>  -- go(north / south / east / west / up / down)",
+        //"look            -- describe the current room",
+        "pickup <item>   -- pick up an item",
+        "drop <item>     -- drop an item from your inventory",
+        "inventory       -- list everything you're carrying",
+        "craft <item>    -- craft gear from materials (near Newt)",
+        "use <Tool>      -- use a tool in your inventory",
+        "equip <item>    -- equip a tool to gain its stat bonuses",
+        "unequip <item>  -- remove a tool's bonuses",
+        "talk <npc>      -- talk to an NPC",
+        "attack <monster>-- fight a monster",
+        "flee            -- attempt to flee from combat",
+        "magic           -- use magic against a monster (if you have it)",
+        "me              -- check your current stats and objective",
+        "save <filename> -- save your game (default: save.json)",
+        "load <filename> -- load a saved game (default: save.json)",
+        "exit            -- quit the game" };
+    dialogue.options.clear();
+    dialogue.clear_after = true;
 }
 bool GameLoop::cmdGo(const std::string& direction) {
     Room* current = player.getLocation();
@@ -193,7 +196,7 @@ bool GameLoop::cmdDrop(const std::string& itemName){
     return false;
 }
 bool GameLoop::cmdUseTool(const std::string& itemName){
-    for (Item* item: player.getInventory()) {
+    for (Item* item: player.getItems()) {
         if (toLower(item->getName()) == toLower(itemName)) {
             std::cout << "You use the " << item->getName() << ".\n";
             player.useTool(item->getName());
@@ -287,13 +290,15 @@ bool GameLoop::cmdTalk(const std::string& npcName) {
         std::cout << "You're nowhere — can't talk to anyone.\n";
         return false;
     }
-    NPC* npc = player.getLocation()->getNpcByName(npcName);
+    std::string cleaned = npcName;
+    if (cleaned.rfind("to ", 0) == 0) cleaned = cleaned.substr(3);
+    NPC* npc = player.getLocation()->getNpcByName(cleaned);
     if (!npc) {
         std::cout << "There's no one here by that name.\n";
         return false;
     }
     npc->talk(player, dialogue);
-    dialogue.recordHistory();   // <-- add this
+    dialogue.recordHistory();   
     return true;
 }
 
@@ -320,8 +325,14 @@ bool GameLoop::handleDialogueChoice(const std::string& input) {
 
 void GameLoop::scrollDialogueHistory(int delta) {
     if (!dialogue.active || dialogue.history.empty()) return;
+
     int maxOffset = std::max(0, (int)dialogue.history.size() - 1);
-    dialogue.scrollOffset = std::clamp(dialogue.scrollOffset + delta, 0, maxOffset);
+    int newOffset = dialogue.scrollOffset + delta;
+
+    if (newOffset < 0) newOffset = 0;
+    if (newOffset > maxOffset) newOffset = maxOffset;
+
+    dialogue.scrollOffset = newOffset;
 }
 bool GameLoop::cmdUseMagic() {
     if (!player.getInCombat()) {
@@ -379,42 +390,49 @@ bool GameLoop::cmdSave(const std::string& filename) {
 bool GameLoop::cmdLoad(const std::string& filename) {
     return SaveManager::loadGame(filename, player, world);
 }
-bool GameLoop::cmdMe() const {
-    std::cout << "\n--- Status ---\n";
-    std::cout << "Experience To Level Up: " << player.getExp() << " out of " << player.getExpToNextLevel() << "\n";
-    std::cout << "Name:          " << player.getName() << "\n";
-    std::cout << "Room:          " << player.getLocation()->getName() << "\n";
-    std::cout << "Health:        " << player.getHealth()<< " out of "<< player.MaxHealth()<<" \n";
-    std::cout << "Energy:        " << player.getEnergy() << " out of "<< player.MaxEnergy()<<" \n";
-    std::cout << "Level:         " << player.getLevel() << "\n";
-    std::cout << "Strength:      " << player.getStats().strength << "\n";
-    std::cout << "Dexterity:     " << player.getStats().dexterity << "\n";
-    std::cout << "Intelligence:  " << player.getStats().intelligence << "\n";
-    std::cout << "Defence:       " << player.getStats().defence << "\n";
-   if (player.getLevel() == 2){
-        std::cout << "Magic:          " << player.hasMagic() << "\n";
+bool GameLoop::cmdMe() {
+    dialogue.active = true;
+    dialogue.speaker = "--- Status ---";
+    dialogue.lines = {
+        "Experience To Level Up: " + std::to_string(player.getExp()) + " out of " + std::to_string(player.getExpToNextLevel()),
+        "Name:          " +(player.getName()),
+        "Room:          " +(player.getLocation()->getName()),
+        "Health:        " + std::to_string(player.getHealth()) + " out of " + std::to_string(player.MaxHealth()),
+        "Energy:        " + std::to_string(player.getEnergy()) + " out of " + std::to_string(player.MaxEnergy()),
+        "Level:         " + std::to_string(player.getLevel()),
+        "Strength:      " + std::to_string(player.getStats().strength),
+        "Dexterity:     " + std::to_string(player.getStats().dexterity),
+        "Intelligence:  " + std::to_string(player.getStats().intelligence),
+        "Defence:       " + std::to_string(player.getStats().defence)
+    };
+
+    dialogue.options.clear();
+    dialogue.clear_after = true;
+    
+    if (player.getLevel() == 2){
+        dialogue.lines.push_back("Magic:          " + std::to_string(player.hasMagic()));
     }
 
-    std::cout << "Equipped:\n";
+    dialogue.lines.push_back("Equipped:");
     if (player.getInventory().empty()) {
-        std::cout << "> nothing\n";
+        dialogue.lines.push_back("> nothing");
     }
     else {
         for (Item* item : player.getInventory())
-            std::cout << "> " << item->getName() << "\n";
+            dialogue.lines.push_back("> " + item->getName());
     }
 
     if (player.getLevel() == 0){
-        std::cout << "\nObjective: Talk to Newt until he tells you about being a runner.\n";
+        dialogue.lines.push_back("Objective: Talk to Newt until he tells you about being a runner.");
     }
     else if (player.getLevel() == 1){
-        std::cout << "\nObjective: Craft your gear and run through the first cycle of the maze.\n";
+        dialogue.lines.push_back("Objective: Craft your gear and run through the first cycle of the maze.");
     }
     else if (player.getLevel() == 2){
-        std::cout << "\nObjective: Find your way back to camp and report to the infirmary and to Newt.\n";
+        dialogue.lines.push_back("Objective: Find your way back to camp and report to the infirmary and to Newt.");
     }
     else if (player.getLevel() == 3){
-        std::cout << "\nObjective: Find a way to beat the monsters and find the way out. (Hint: EMP?)\n";
+        dialogue.lines.push_back("Objective: Find a way to beat the monsters and find the way out. (Hint: EMP?)");
 }
     return true;
 }
