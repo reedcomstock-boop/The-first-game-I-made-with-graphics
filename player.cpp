@@ -13,6 +13,7 @@ Player::Player(const std::string& name, const std::string& description,
     maxHealth = health;
     baseHealth = health;
     maxEnergy = 100.0;
+    energy = 30.0;
     exp=0.0;
     level = 0;
     experienceToLevelUp = 100.0;

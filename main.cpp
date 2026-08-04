@@ -76,6 +76,10 @@ int main() {
             if (IsKeyDown(KEY_RIGHT)) dx += 1.0f;
             if (IsKeyDown(KEY_UP))    dy -= 1.0f;
             if (IsKeyDown(KEY_DOWN))  dy += 1.0f;
+        } else {
+            // Arrow keys scroll the conversation transcript instead of moving.
+            if (IsKeyPressed(KEY_UP))   loop.scrollDialogueHistory(-1);
+            if (IsKeyPressed(KEY_DOWN)) loop.scrollDialogueHistory(1);
         }
 
         playerX += dx * MOVE_SPEED * dt;
