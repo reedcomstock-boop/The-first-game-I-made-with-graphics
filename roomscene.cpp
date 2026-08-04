@@ -185,7 +185,7 @@ void RoomSceneManager::loadProps(const std::string& assetDir) {
 void RoomSceneManager::loadMonsterSprites(const std::string& assetDir) {
     // Build a fresh animator per Griever name — can't share one StripAnimator
     // across map entries since it's move-only (each move empties the source).
-    for (const std::string n : {"The First Griever", "Griever 1", "Griever 2",
+    for (const std::string& n : {"The First Griever", "Griever 1", "Griever 2",
                                   "Griever 3", "Griever 5", "Griever 7", "Griever 8"}) {
         StripAnimator griever;
         griever.addClip("idle", assetDir + "/Mobs/Orc Crew/Orc - Warrior/Idle/Idle-Sheet.png", 4, 0.15f, 32, 32);

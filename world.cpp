@@ -1,7 +1,7 @@
 #include "world.h"
 #include "items.h"
 
-World::World() : worldLevel(1) {}
+World::World() : worldLevel(WorldStage::Glade) {}
 
 World::~World() {
     for (Room* r : rooms) delete r;
@@ -14,8 +14,10 @@ NPC* World::getNpcByName(const std::string& name) const {
     }
     return nullptr;
 }
-int World::getWorldLevel() const { return worldLevel; }
-void World::setWorldLevel(int level) { worldLevel = level; }
+WorldStage World::getWorldLevel() const { return worldLevel; }
+
+void World::setWorldLevel(WorldStage stage) { worldLevel = stage; }
+
 const std::vector<Room*>& World::getRooms() const { return rooms; }
 
 Room* World::getRoomByName(const std::string& name) const {
@@ -27,9 +29,11 @@ Room* World::getRoomByName(const std::string& name) const {
 
 void World::createWorld() {
     // --- Build rooms ---
+
     Room* startRoom  = new Room("The Cage",
         "You wake up in a metal box filled with haphazardly packaged supplies for a campground.",
         {}, {});
+    alby = new Helper("Alby", "A wise old runner who has seen many things. He's been stuck in the maze for longer than anyone else.", 100.0, {8,8,8,8});
     Room* glade      = new Room("The Glade",
         "You look around and see that you are in an open grassy field surrounded by tall stone walls.",
         {}, {});
@@ -86,8 +90,11 @@ void World::createWorld() {
     Tool* medpack = new Tool("Med packs", "Medical supplies to keep you from getting too close to death.",0, {0, 0, 0, 5}, 20.0, 5.0);
     
     // --- Place npcs in rooms ---
+  
     campGround->addNpcEntity(newt);
     walls->addNpcEntity(gally);
+    glade->addNpcEntity(alby);
+
 
     // --- Place items in rooms ---
     rations->putInRoom(startRoom);
@@ -113,7 +120,7 @@ void World::createWorldLvlTwo() {
     pete = new Medic("Pete", "A friendly medic who can heal you and maybe help you regain your memories.", 100.0, {5, 5, 5, 5});
 
     minho = new Helper("Minho", "A skilled runner who can teach you advanced combat techniques.", 100.0, {8, 8, 8, 8});
-    if (TrainingGrounds) TrainingGrounds->addNpcEntity(minho);
+    TrainingGrounds->addNpcEntity(minho);
 
     // Update room descriptions
     if (TreeHouse){
@@ -129,8 +136,11 @@ void World::createWorldLvlTwo() {
     if (shed){
         shed->setDescription("You walk in to see a small workshop with a couple of workbenches. "
             "There are a few tools and scrapped materials scattered around the room.");
-        if (shed) shed->addNpcEntity(newt);
+        if (shed){ 
+            shed->addNpcEntity(newt);
+        }
     }
+    campGround->removeNpcEntity(newt);
 
 
     // Spawn extra crafting materials around the world
@@ -144,17 +154,17 @@ void World::createWorldLvlTwo() {
     Tool* TrainingSword = new Tool("Training Sword", "A sword to help you train and get better at fighting.", 0, {5, 0, 0, 0}, 0.0, 3.0);
     Item* Map = new Item("Map", "A map of the maze to help you navigate.");
 
-    if (glade)      rock->putInRoom(glade);
-    if (campGround) stick->putInRoom(campGround);
-    if (campGround) leather->putInRoom(campGround);
-    if (glade)      cloth->putInRoom(glade);
-    if (infirmary)  metal->putInRoom(infirmary);
-    if (infirmary)  medpack->putInRoom(infirmary);
-    if (shed)       rations->putInRoom(shed);
-    if (TrainingGrounds) TrainingSword->putInRoom(TrainingGrounds);
-    if (Lake)       rock->putInRoom(Lake);
-    if (TheWoods)   stick->putInRoom(TheWoods);
-    if (TreeHouse)  Map->putInRoom(TreeHouse);
+    rock->putInRoom(glade);
+    stick->putInRoom(campGround);
+    leather->putInRoom(campGround);
+    cloth->putInRoom(glade);
+    metal->putInRoom(infirmary);
+    medpack->putInRoom(infirmary);
+    rations->putInRoom(shed);
+    TrainingSword->putInRoom(TrainingGrounds);
+    rock->putInRoom(Lake);
+    stick->putInRoom(TheWoods);
+    Map->putInRoom(TreeHouse);
 }
 void World::createMaze(){
     Room* Maze = getRoomByName("The Maze");
@@ -181,6 +191,101 @@ void World::createMaze(){
 
     rooms.insert(rooms.end(), {Maze1, Maze2, Maze3, Maze4, Maze5, Maze6, Maze7, Maze8});
 }
+
+void World::createFirstGrieverEncounter() {
+    // Stage 3: MazeOpen. Player goes in with Alby + Minho and meets the First Griever.
+    // Outcome (kill vs. flee/betray) is recorded on Player and read back in
+    // createGrieverReturnEncounter() later.
+    Room* Maze5 = getRoomByName("Maze5");
+    if (!Maze5) return;
+
+    Stats grieverStats = {8, 3, 2, 6};
+    firstGriever = new Monster("The First Griever", "A hulking mechanical beast.", 100.0, grieverStats, 50.0);
+    Maze5->addNpcEntity(firstGriever);
+
+    // TODO(dialogue): Alby/Minho escort commentary before/after this fight.
+}
+
+void World::createSafeZoneBreach() {
+    // Stage 4: player + Minho + Alby return to the Glade to find the maze doesn't
+    // seal itself off from monsters at night anymore -- the safe zone is gone.
+    nightUnsafe = true;
+
+    Room* glade = getRoomByName("The Glade");
+    Room* campGround = getRoomByName("The Camp Ground");
+    if (glade) {
+        glade->setDescription(glade->getDescription() +
+            " Something's changed -- the walls don't shift shut at night anymore. "
+            "People are on edge, taking shifts on watch.");
+    }
+    if (campGround) {
+        campGround->setDescription(campGround->getDescription() +
+            " The camp feels tense now that the Glade isn't sealed off at night.");
+    }
+
+    // TODO: spawn a night-Griever encounter in the Glade/campground rooms once
+    // a day/night mechanic exists; structurally just flagged via nightUnsafe for now.
+}
+void World::createTerrisaArrival() {
+    // Stage 5: moved from The Walls to The Cage per the new story order -- she
+    // comes up through the same hatch Thomas did.
+    Room* cage = getRoomByName("The Cage");
+    if (!cage) return;
+
+    terrisa = new Helper("Terrisa",
+        "A girl who stumbled out of the Cage, unconscious, and somehow knows your name.",
+        100.0, {6, 8, 9, 5});
+
+    cage->addNpcEntity(terrisa);
+    cage->setDescription("The hatch groans open again, out of cycle. A girl tumbles out, "
+        "unconscious -- the first girl anyone's ever seen come up. Terrisa stirs nearby.");
+}
+void World::createMapReveal() {
+    // Stage 6: mostly a dialogue beat (Minho + Newt walk the player through the
+    // tree-house map of the maze's phases). No room changes needed yet --
+    // hook is here so GameLoop/NPC.cpp have a stage to gate that conversation on.
+    // TODO(dialogue): Newt/Minho dialogue in TreeHouse referencing the Map item.
+}
+
+void World::createGrieverReturnEncounter() {
+    // Stage 9: branches on whether the player killed the First Griever back in
+    // MazeOpen (stage 3) or fled/betrayed their friends instead.
+    Room* Maze5 = getRoomByName("Maze5");
+    if (!Maze5) return;
+
+    if (firstGriever && firstGriever->getHealth() > 0) {
+        // Still alive (player fled earlier) -- second, forced confrontation.
+        // TODO(dialogue): Alby/Minho remark on the betrayal before the fight.
+    } else {
+        // Player killed it already -- leave a harvestable corpse instead.
+        Item* remains = new Item("Griever Remains",
+            "The husk of the First Griever, venom sacs still intact. Could be harvested.");
+        remains->putInRoom(Maze5);
+        // TODO(dialogue): Alby/Minho remark on finding the corpse, offer to harvest.
+    }
+}
+
+void World::createFinalPreparation() {
+    // Stage 10: remains/venom brought back to camp; Terrisa pushes the player
+    // to take it, regain memories, and gain EMP power.
+    // TODO(dialogue): Terrisa/Pete conversation gating player.setMagic(true).
+}
+
+void World::createFinalAssault() {
+    // Stage 11: all the helpers join the player for the push to the exit.
+    Room* mazeExit = getRoomByName("Maze7"); // sealed door room, found back in stage 8
+    if (!mazeExit) return;
+
+    for (Helper* h : {newt, gally, minho, terrisa, alby}) {
+        if (!h) continue;
+        // Pull them out of wherever they were and stage them at the exit room
+        // for the final push. Room removal isn't tracked per-NPC here, so this
+        // just ensures they're present at the finale.
+        mazeExit->addNpcEntity(h);
+    }
+    // TODO: ending trigger (e.g. GameLoop detects player + all helpers in Maze7
+    // and prints the victory ending instead of the "you fall" default ending).
+}
 void World:: createMazePhaseTwo(){
     Room* Maze  = getRoomByName("The Maze");
     Room* Maze3 = getRoomByName("Maze3");
@@ -198,10 +303,10 @@ void World:: createMazePhaseTwo(){
     Room* Maze13  = new Room("Maze13", "Collapsed room with a narrow crawling path.", {}, {});
     Room* Maze14  = new Room("Maze14", "Large echoing tunnel with flickering lights.", {}, {});
 
-    Stats grieverstats = {8, 3, 2, 6};
-    Monster* griever1 = new Monster("The First Griever", "A hulking mechanical beast.", 100.0, grieverstats, 50.0);
-    Maze5->addNpcEntity(griever1);
-    
+    // Note: "The First Griever" is no longer spawned here -- it's placed earlier
+    // by createFirstGrieverEncounter() (stage 3) so its fate (killed/fled) can be
+    // tracked into the branch-aware return encounter later.
+
     // Add grievers to existing Maze rooms
     Stats grieverStats = {6, 3, 2, 4};
     if (Maze4) Maze4->addNpcEntity(new Monster("Griever 1", "A hulking mechanical beast.", 60.0, grieverStats, 30.0));

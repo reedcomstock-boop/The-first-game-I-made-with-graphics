@@ -3,9 +3,34 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include "stats.h"
 #include "updater.h"
 class Player;
+class NPC;
+// Shared, non-blocking dialogue state. GameLoop owns one instance; NPC::talk
+// implementations fill it in and return immediately instead of blocking on
+// std::cin. graphics.cpp draws it; main.cpp/GameLoop feed player choices
+// into it from the input buffer.
+struct DialogueState {
+    bool active = false;
+    bool clear_after = false;         // whether to clear the dialogue after this one
+
+    std::string speaker;
+    std::vector<std::string> lines;    // lines to show right now (paged)
+    std::vector<std::string> options;  // e.g. {"A. ...", "B. ..."} — empty if no choice pending
+    NPC* npc = nullptr;                // who we're mid-conversation with (for resuming)
+
+    void clear() {
+        active = false;
+        clear_after = false;
+        speaker.clear();
+        lines.clear();
+        options.clear();
+        npc = nullptr;
+    }
+};
+
 class Entity : public Updatable {
 public:
     Entity(const std::string& name, const std::string& description,
@@ -29,7 +54,7 @@ public:
     void setDialogueProgress(int32_t lvl);
 
 protected:
-    double energy;  // Energy level for NPCs, decreases over time
+    double energy;
     double experience;
     int32_t dialogueProgress;
 
@@ -45,15 +70,19 @@ class NPC : public Entity {
 public:
     NPC(const std::string& name, const std::string& description, double health, const Stats& stats);
     void update() override;
-    virtual void talk(Player& player);
-
+    // talk() now fills `out` and returns immediately — no blocking I/O.
+    virtual void talk(Player& player, DialogueState& out);
+    // Called when the player picks an option while mid-conversation with
+    // this NPC. `choiceIndex` is 0-based (A=0, B=1, ...).
+    virtual void continueTalk(Player& player, DialogueState& out, int choiceIndex);
 };
 
 class Helper : public NPC {
 public:
     Helper(const std::string& name, const std::string& description, double health, const Stats& stats);
     void update() override;
-    void talk(Player& player) override;
+    void talk(Player& player, DialogueState& out) override;
+    void continueTalk(Player& player, DialogueState& out, int choiceIndex) override;
 };
 
 class Monster : public NPC {
@@ -67,8 +96,8 @@ class Medic : public NPC {
 public:
     Medic(const std::string& name, const std::string& description, double health, const Stats& stats);
     void update() override;
-    void talk(Player& player) override;
-
+    void talk(Player& player, DialogueState& out) override;
+    void continueTalk(Player& player, DialogueState& out, int choiceIndex) override;
 };
 
 #endif // ENTITY_H

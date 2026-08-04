@@ -11,6 +11,7 @@ Player::Player(const std::string& name, const std::string& description,
     isAlive = true;
     magic = false;
     maxHealth = health;
+    baseHealth = health;
     maxEnergy = 100.0;
     exp=0.0;
     level = 0;
@@ -79,21 +80,17 @@ void Player::setLocation(Room* room){
 
 }
 double Player::MaxHealth() const {
-    return getHealth() + 5 * getStats().defence; // Assuming health is part of Stats
+    return baseHealth + 5 * getStats().defence; // Assuming health is part of Stats
 }
 double Player::MaxEnergy() const {
     double lvl = (level > 0) ? static_cast<double>(level) : 1.0;
     return lvl + (20 * getStats().intelligence); // Assuming energy is part of Stats
 }
-double Player::getExp(){
+double Player::getExp() const{
     return exp;
 }
 double Player::getExpToNextLevel(){
     return experienceToLevelUp;
-}
-void Player::setExp(double amt){
-    exp += amt;
-    std::cout << "You gained " << amt << " experience points!\n";
 }
 Room* Player::goDirection(const std::string& direction) {
     if (location) {
@@ -121,17 +118,19 @@ int32_t Player::getDiologueProgress() const {
 void Player::setDiologueProgress(int32_t progress) { 
     dialogueProgress = progress; 
     }
-
-int32_t Player::getLevel() const {
-    return level;
-}
-void Player::checkLevelUp() {
-    if (exp >= experienceToLevelUp) {
+void Player::setExp(double amt) {
+    exp += amt;
+    std::cout << "\nYou gained " << amt << " experience points!\n";
+    while (exp >= experienceToLevelUp) {
         exp -= experienceToLevelUp;
         experienceToLevelUp *= 1.5;
         level++;
         std::cout << "\nYou leveled up! You are now level " << level << ".\n";
     }
+}
+
+int32_t Player::getLevel() const {
+    return level;
 }
 
 void Player::setInCombat(bool combat) {
@@ -159,6 +158,9 @@ void Player::attack(NPC* target) {
 
     if (target->getHealth() <= 0) {
         std::cout << target->getName() << " has been defeated!\n";
+        if (target->getName() == "The First Griever") {
+            firstGrieverDefeated = true;
+        }
         setExp(target->getExperience());
         inCombat = false;
         combatTarget = nullptr;
@@ -197,6 +199,10 @@ void Player::fleeComnbat() {
     int roll = rand() % 10;
     if (roll >= avoidChance) {
         std::cout << "You successfully fled from combat!\n";
+        if (combatTarget && combatTarget->getName() == "The First Griever") {
+            betrayedFriends = true;
+            std::cout << "You leave Alby and Minho to face it alone...\n";
+        }
         inCombat = false;
         combatTarget = nullptr;
     } else {
@@ -235,6 +241,19 @@ void Player::setMagic(bool hasMagic) {
 bool Player::hasMagic() const {
     return magic;
 }
+void Player::restoreProgress(int32_t lvl, double currentExp, double expToNextLvl) {
+    level = lvl;
+    exp = currentExp;
+    experienceToLevelUp = expToNextLvl;
+}
+void Player::setStats(const Stats& s) {
+    applyBonus(Stats{
+        s.strength - getStats().strength,
+        s.dexterity - getStats().dexterity,
+        s.intelligence - getStats().intelligence,
+        s.defence - getStats().defence
+    });
+}
 void Player::useMagic() {
     if (!magic) {
         std::cout << "You don't know any magic yet.\n";
@@ -249,6 +268,9 @@ void Player::useMagic() {
 
     if (combatTarget->getHealth() <= 0) {
         std::cout << combatTarget->getName() << " has been defeated!\n";
+        if (combatTarget->getName() == "The First Griever") {
+            firstGrieverDefeated = true;
+        }
         setExp(combatTarget->getExperience());
         inCombat = false;
         combatTarget = nullptr;
@@ -283,3 +305,10 @@ Tool* Player::craftItem(const std::string& name, const std::string& description,
     // Implement crafting logic here
     return new Tool(name, description, level, stats, health, energy);
 }
+
+bool Player::getFirstGrieverDefeated() const { return firstGrieverDefeated; }
+void Player::setFirstGrieverDefeated(bool v) { firstGrieverDefeated = v; }
+bool Player::getBetrayedFriends() const { return betrayedFriends; }
+void Player::setBetrayedFriends(bool v) { betrayedFriends = v; }
+bool Player::getHarvestedVenom() const { return harvestedVenom; }
+void Player::setHarvestedVenom(bool v) { harvestedVenom = v; }
