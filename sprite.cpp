@@ -1,23 +1,6 @@
 #include "sprite.h"
-#include <string>
 
-static const char* SHEET_FILES[16] = {
-    "idle_down_40x40.png",    "idle_left_40x40.png",
-    "idle_right_40x40.png",   "idle_up_40x40.png",
-    "run_down_40x40.png",     "run_left_40x40.png",
-    "run_right_40x40.png",    "run_up_40x40.png",
-    "attack_down_40x40.png",  "attack_left_40x40.png",
-    "attack_right_40x40.png", "attack_up_40x40.png",
-    "death_down_40x40.png",   "death_left_40x40.png",
-    "death_right_40x40.png",  "death_up_40x40.png",
-};
-static const int   SHEET_FRAMES[16] = {4,4,4,4, 6,6,6,6, 7,7,7,7, 9,9,9,9};
-static const float SHEET_SPF[16]    = {
-    0.18f,0.18f,0.18f,0.18f,
-    0.10f,0.10f,0.10f,0.10f,
-    0.08f,0.08f,0.08f,0.08f,
-    0.12f,0.12f,0.12f,0.12f
-};
+static const int WALK_SEQUENCE[4] = {1, 0, 1, 2}; // standing, left-step, standing, right-step
 
 SpriteAnimator::SpriteAnimator()
     : currentState(AnimState::IdleDown), currentFrame(0),
@@ -25,33 +8,53 @@ SpriteAnimator::SpriteAnimator()
 
 SpriteAnimator::~SpriteAnimator() { unload(); }
 
-void SpriteAnimator::load(const std::string& assetDir) {
-    for (int i = 0; i < NUM_ANIMS; i++) {
-        std::string path = assetDir + "/" + SHEET_FILES[i];
-        sheets[i].texture       = LoadTexture(path.c_str());
-        sheets[i].frameCount    = SHEET_FRAMES[i];
-        sheets[i].frameDuration = SHEET_SPF[i];
-    }
+void SpriteAnimator::load(const std::string& walkPath, const std::string& deathPath,
+                           const std::string& attackPath) {
+    walkTexture   = LoadTexture(walkPath.c_str());
+    deathTexture  = LoadTexture(deathPath.c_str());
+    attackTexture = LoadTexture(attackPath.c_str());
+
+    if (walkTexture.id == 0)   TraceLog(LOG_WARNING, "SpriteAnimator: failed to load walk sheet: %s", walkPath.c_str());
+    if (deathTexture.id == 0)  TraceLog(LOG_WARNING, "SpriteAnimator: failed to load death sheet: %s", deathPath.c_str());
+    if (attackTexture.id == 0) TraceLog(LOG_WARNING, "SpriteAnimator: failed to load attack sheet: %s", attackPath.c_str());
+
     loaded = true;
 }
 
 void SpriteAnimator::unload() {
     if (!loaded) return;
-    for (int i = 0; i < NUM_ANIMS; i++) UnloadTexture(sheets[i].texture);
+    UnloadTexture(walkTexture);
+    UnloadTexture(deathTexture);
+    UnloadTexture(attackTexture);
     loaded = false;
 }
 
-int SpriteAnimator::stateIndex() const { return static_cast<int>(currentState); }
-SpriteAnimator::AnimSheet& SpriteAnimator::currentSheet() { return sheets[stateIndex()]; }
-const SpriteAnimator::AnimSheet& SpriteAnimator::currentSheet() const { return sheets[stateIndex()]; }
+float SpriteAnimator::frameDuration(AnimState state) const {
+    if (state == AnimState::Death)  return 0.15f;
+    if (state == AnimState::Attack) return 0.10f;
+    return 0.12f;
+}
+
+int SpriteAnimator::frameCount(AnimState state) const {
+    if (state == AnimState::Death)  return DEATH_FRAMES;
+    if (state == AnimState::Attack) return ATTACK_FRAMES;
+    return 4; // length of WALK_SEQUENCE
+}
+
+int SpriteAnimator::rowFor(AnimState state) const {
+    switch (state) {
+        case AnimState::IdleDown:  case AnimState::RunDown:  return 0;
+        case AnimState::IdleLeft:  case AnimState::RunLeft:  return 1;
+        case AnimState::IdleRight: case AnimState::RunRight: return 2;
+        case AnimState::IdleUp:    case AnimState::RunUp:    return 3;
+        default: return 0;
+    }
+}
 
 void SpriteAnimator::setState(AnimState state) {
     if (state == currentState) return;
-    // Never interrupt a death animation mid-play
-    if (currentState == AnimState::DeathDown  || currentState == AnimState::DeathLeft  ||
-        currentState == AnimState::DeathRight || currentState == AnimState::DeathUp) {
-        if (!isDeathFinished()) return;
-    }
+    if (currentState == AnimState::Death  && !isDeathFinished())  return;
+    if (currentState == AnimState::Attack && !isAttackFinished()) return;
     currentState = state;
     currentFrame = 0;
     frameTimer   = 0.0f;
@@ -59,34 +62,60 @@ void SpriteAnimator::setState(AnimState state) {
 
 void SpriteAnimator::update(float dt) {
     if (!loaded) return;
-    const AnimSheet& sheet = currentSheet();
     frameTimer += dt;
-    if (frameTimer >= sheet.frameDuration) {
-        frameTimer -= sheet.frameDuration;
-        bool looping = (currentState < AnimState::AttackDown);
-        if (currentFrame < sheet.frameCount - 1)
+    float dur = frameDuration(currentState);
+    if (frameTimer >= dur) {
+        frameTimer -= dur;
+        int count = frameCount(currentState);
+        bool looping = (currentState != AnimState::Death && currentState != AnimState::Attack);
+        if (currentFrame < count - 1)
             currentFrame++;
         else if (looping)
             currentFrame = 0;
-        // attack and death hold last frame when done
+        // death and attack hold on their last frame when finished
     }
 }
 
 void SpriteAnimator::draw(int x, int y, float scale) const {
     if (!loaded) return;
-    const AnimSheet& sheet = currentSheet();
-    int sw = 40;
-    int sh = 40;
-    Rectangle src = { (float)(currentFrame * sw), 0.0f, (float)sw, (float)sh };
+
+    Texture2D tex;
+    Rectangle src;
+    int size;
+
+    if (currentState == AnimState::Death) {
+        tex  = deathTexture;
+        size = WALK_FRAME_SIZE;
+        src  = { (float)(currentFrame * size), 0.0f, (float)size, (float)size };
+    } else if (currentState == AnimState::Attack) {
+        tex  = attackTexture;
+        size = ATTACK_FRAME_SIZE;
+        int col = ATTACK_COL0 + currentFrame;
+        src  = { (float)(col * size), (float)(ATTACK_ROW * size), (float)size, (float)size };
+    } else {
+        tex  = walkTexture;
+        size = WALK_FRAME_SIZE;
+        int col = WALK_SEQUENCE[currentFrame];
+        int row = rowFor(currentState);
+        src  = { (float)(col * size), (float)(row * size), (float)size, (float)size };
+    }
+
+    if (tex.id == 0) return;
+float displayScale = scale * ((float)WALK_FRAME_SIZE / (float)size); // keeps attack visually same size as walk
+
     Rectangle dst = {
-        (float)(x - (int)(sw * scale * 0.5f)),
-        (float)(y - (int)(sh * scale * 0.5f)),
-        sw * scale,
-        sh * scale
+        (float)(x - (int)(size * displayScale * 0.5f)),
+        (float)(y - (int)(size * displayScale * 0.5f)),
+        size * displayScale,
+        size * displayScale
     };
-    DrawTexturePro(sheet.texture, src, dst, {0, 0}, 0.0f, WHITE);
+    DrawTexturePro(tex, src, dst, {0, 0}, 0.0f, WHITE);
 }
 
 bool SpriteAnimator::isDeathFinished() const {
-    return currentFrame >= currentSheet().frameCount - 1;
+    return currentState == AnimState::Death && currentFrame >= DEATH_FRAMES - 1;
+}
+
+bool SpriteAnimator::isAttackFinished() const {
+    return currentState == AnimState::Attack && currentFrame >= ATTACK_FRAMES - 1;
 }

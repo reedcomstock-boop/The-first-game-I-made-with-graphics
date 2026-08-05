@@ -295,7 +295,7 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     g_scene.drawDecorFeatures(room->getName(), x, y, sceneScale);  // doors, banners, structures
     g_scene.drawProps(room->getName(), x, y, mW, sceneH, sceneScale);
     g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, sceneH, sceneScale);
-    thomas.draw(x + (int32_t)(relX * mW), y + (int32_t)(relY * sceneH), sceneScale);
+    thomas.draw(x + (int32_t)(relX * mW), y + (int32_t)(relY * sceneH), sceneScale/2.0f);
     EndScissorMode();
     DrawRectangleLinesEx(sceneRect, 1.5f, C_BORDER);
     y += sceneH + (int32_t)(10 * SY());
