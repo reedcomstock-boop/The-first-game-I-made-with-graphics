@@ -1,9 +1,8 @@
 CXX = g++
 CFLAGS = -Wall -Wextra -pedantic -Werror -std=gnu++17 -I/ucrt64/include
-LDFLAGS = -L/ucrt64/lib -lraylib -lopengl32 -lgdi32 -lwinmm
+LDFLAGS = -L/ucrt64/lib -lraylib -lopengl32 -lgdi32 -lwinmm -static-libgcc -static-libstdc++
 CXXFLAGS += -I.
 CXXFLAGS += -Isrc
-
 TARGET = Game.exe
 
 OBJS = main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o save.o tileset.o strip_animator.o roomscene.o sprite.o
@@ -11,7 +10,6 @@ OBJS = main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphi
 .PHONY: all clean
 
 all: $(TARGET)
-
 $(TARGET): $(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LDFLAGS)
 
