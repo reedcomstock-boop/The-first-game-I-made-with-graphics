@@ -82,6 +82,7 @@ static void ensureSceneLoaded(const World& world) {
     g_scene.loadNpcSprites(ASSET_DIR);
     g_scene.loadMonsterSprites(ASSET_DIR);
     g_scene.loadProps(ASSET_DIR);
+    g_scene.loadNpcPortraits(ASSET_DIR);   // <-- add this
     g_scene.buildLayouts(world, SCENE_COLS, SCENE_ROWS);
     g_sceneLoaded = true;
 }
@@ -396,6 +397,18 @@ static void drawDialogue(const DialogueState& dlg) {
     } else {
         DrawText("(Up arrow to scroll back through this conversation)",
                  x, y, FS_SMALL(), C_DIM);
+    }
+    // Speaker portrait, bottom-right corner of the dialogue panel — only
+    // draws for NPCs that actually have one loaded (Alby only, for now).
+    Texture2D portrait = g_scene.getPortrait(dlg.speaker);
+    if (portrait.id != 0) {
+        float portraitSize = 96 * SY();   // on-screen box; native art is 144x144
+        float px = panel.x + panel.width  - portraitSize - PAD();
+        float py = panel.y + panel.height - portraitSize - PAD();
+        Rectangle src = { 0, 0, (float)portrait.width, (float)portrait.height };
+        Rectangle dst = { px, py, portraitSize, portraitSize };
+        DrawTexturePro(portrait, src, dst, {0, 0}, 0.0f, WHITE);
+        DrawRectangleLinesEx(dst, 1.5f, C_BORDER);
     }
 }
 

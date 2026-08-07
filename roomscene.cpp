@@ -25,8 +25,52 @@ static const int FLOOR_TILE_INDEX   = 16;  // Floors_Tiles.png  row 0, col 16 �
 static const int WALL_TILE_INDEX    = 27;  // Wall_Tiles.png    row 1, col 2  — solid, tiles clean
 static const int WATER_TILE_INDEX   = 0;   // Water_tiles.png   row 0, col 0  — solid, tiles clean
 static const int DUNGEON_TILE_INDEX = 0;   // Dungeon_Tiles.png row 0, col 0  — solid, tiles clean
-static const int DUNGEON_WALL_INDEX = 0;
 
+// ---------------------------------------------------------------------
+// Dungeon_Tiles.png catalog — indices are col/row within the 25x25 grid.
+// TileRef fills use the flat index (row*25+col); DecorFeature objects use
+// a {col,row,w,h} rect that gets combined with dungeonIdx + a grid
+// placement at the point of use (see theCage for the pattern).
+// ---------------------------------------------------------------------
+
+// --- Repeatable TileRef fills (row*25+col) ---
+static const int DUNGEON_WALL_INDEX        = 2;   // row0,col2  — solid brick wall
+static const int DUNGEON_WALL_CORNER_INDEX = 3;   // row0,col3  — stepped wall-top/corner variant
+static const int DUNGEON_FLOOR_INDEX       = 55;  // row2,col5  — solid floor
+
+static const int DUNGEON_RAIL_CAP_INDEX    = 14 * 25 + 0; // row14,col0 — top rail, any zone
+static const int DUNGEON_RAIL_ORANGE_INDEX = 16 * 25 + 1; // row16,col1 — railing body, orange zone
+static const int DUNGEON_RAIL_BLUE_INDEX   = 16 * 25 + 4; // row16,col4 — railing body, blue zone
+static const int DUNGEON_RAIL_GREEN_INDEX  = 16 * 25 + 7; // row16,col7 — railing body, green zone
+
+// --- Single-cell decor (for decorLegend, drawn via drawDecor) ---
+static const int DUNGEON_RIVET_INDEX       = 2 * 25 + 8;   // row2,col8  — 4-dot rivet cluster
+static const int DUNGEON_STAIN_A_INDEX     = 13 * 25 + 6;  // row13,col6 — blood stain variant A
+static const int DUNGEON_STAIN_B_INDEX     = 13 * 25 + 7;  // row13,col7 — blood stain variant B
+
+// --- Multi-cell decor (for decorFeatures, drawn via drawDecorFeatures) ---
+struct FeatureRect { int col, row, w, h; };
+
+static const FeatureRect DUNGEON_DOOR_ARCH        = { 0,  7, 2, 3 }; // existing — matched double archway
+static const FeatureRect DUNGEON_PRISON_BARS      = { 9,  3, 1, 8 }; // tall cell bars
+static const FeatureRect DUNGEON_CELL_DOOR        = { 8,  3, 1, 7 }; // paneled door w/ hinges, pairs with bars
+static const FeatureRect DUNGEON_VENT_CONSOLE     = { 0,  2, 3, 2 };
+static const FeatureRect DUNGEON_BULLETIN_BOARD   = { 17, 0, 3, 3 };
+static const FeatureRect DUNGEON_HATCH_FRAME      = { 21, 1, 2, 2 };
+static const FeatureRect DUNGEON_CRATE_RACK_LG    = { 17, 3, 3, 3 };
+static const FeatureRect DUNGEON_CRATE_RACK_SM    = { 20, 4, 3, 2 };
+static const FeatureRect DUNGEON_BENCH            = { 0,  13, 4, 1 };
+static const FeatureRect DUNGEON_CRACKED_WALL     = { 8,  13, 1, 4 };
+static const FeatureRect DUNGEON_ORB_ORANGE       = { 0,  19, 3, 3 };
+static const FeatureRect DUNGEON_ORB_ORANGE_CAP   = { 1,  18, 1, 1 };
+static const FeatureRect DUNGEON_ORB_BLUE         = { 4,  19, 3, 3 };
+static const FeatureRect DUNGEON_ORB_BLUE_CAP     = { 5,  18, 1, 1 };
+static const FeatureRect DUNGEON_ORB_GREEN        = { 8,  19, 3, 3 };
+static const FeatureRect DUNGEON_ORB_GREEN_CAP    = { 9,  18, 1, 1 };
+
+// Flagged as approximate — verify visually before relying on these:
+static const FeatureRect DUNGEON_BANNER_APPROX    = { 4,  10, 1, 4 };
+static const FeatureRect DUNGEON_FOLIAGE_APPROX   = { 12, 0,  2, 5 };
 RoomSceneManager::RoomSceneManager() {}
 RoomSceneManager::~RoomSceneManager() {}
 
@@ -51,6 +95,9 @@ struct ManualLayout {
     std::unordered_map<char, TileRef> legend;
     std::unordered_map<char, TileRef> decorLegend;
 };
+static DecorFeature DF(int tilesetId, const FeatureRect& r, int gridCol, int gridRow) {
+    return { tilesetId, r.col, r.row, r.w, r.h, gridCol, gridRow };
+}
 
 static std::unordered_map<std::string, ManualLayout> g_manualLayouts;
 
@@ -82,40 +129,43 @@ void RoomSceneManager::defineManualLayouts() {
    
     ManualLayout theCage;
     theCage.legend = {
-        { '#', { dungeonIdx,2 /* solid wall col,row -> row*25+col */ } },
-        { '&', { dungeonIdx,3 /* solid wall col,row -> row*25+col */ } },
-
-        { '.', { dungeonIdx, 55/* solid floor col,row */ } },
-        { ' ', { -1, -1 } }, // nothing — floor/wall shows through untouched
-        
-    };
-    theCage.rows = {
-        "##########",
-        "#........#",
-        "#........#",
-        "#........#",
-        "##########",
+        { '#', { dungeonIdx, DUNGEON_WALL_INDEX } },
+        { '&', { dungeonIdx, DUNGEON_WALL_CORNER_INDEX } },
+        { '.', { dungeonIdx, DUNGEON_FLOOR_INDEX } },
+        { ' ', { -1, -1 } },
     };
     theCage.decorLegend = {
-        //feature{ 'D', { dungeonIdx, /* door tile col,row */ } },
-        //feature{ 'S', { dungeonIdx, /* spike-bar tile col,row */ } },
-        { 'B', { dungeonIdx, 108/* chest tile col,row */ } },
-        { 'X', { dungeonIdx, 359/* blood stain tile col,row */ } },
-        //feature{ 'T', { dungeonIdx, /* torch-topped wall col,row */ } },
-        { ' ', { -1, -1 } }, // nothing — floor/wall shows through untouched
+        { 'X', { dungeonIdx, DUNGEON_STAIN_A_INDEX } },
+        { 'r', { dungeonIdx, DUNGEON_RIVET_INDEX } },
+        { ' ', { -1, -1 } },
     };
-    theCage.decorRows = {
+    theCage.decorFeatures = {
+        DF(dungeonIdx, DUNGEON_DOOR_ARCH,   6, 1),  // the door, same placement as before
+        DF(dungeonIdx, DUNGEON_PRISON_BARS, 1, 0),  // bars along the west wall
+        DF(dungeonIdx, DUNGEON_CELL_DOOR,   6, 1),  // paired cell door next to the bars
+    };
+    theCage.rows = {
+        "#####################",
+        "#..............##",
+        "#..............##",
+        "#..............##",
+        "#..............##",
+        "#..............##",
+        "#####################",
+    };
+    
+    /*theCage.decorRows = {
         " TT######TT",
         " D........#",
         " #...B.....",
         " #....S...X",
         " ##########",
-    };
-    theCage.decorFeatures = { { dungeonIdx, 0, 7, 2, 3, 6, 1 } }; // centered-ish, fits in 4 rows // the door
+    };*/
     g_manualLayouts["The Cage"] = theCage;
 
 
 }
+
 void RoomSceneManager::loadTilesets(const std::string& assetDir) {
     registerTileset("floors",  assetDir + "/tiles/Floors_Tiles.png");
     registerTileset("walls",   assetDir + "/tiles/Wall_Tiles.png");
@@ -123,46 +173,63 @@ void RoomSceneManager::loadTilesets(const std::string& assetDir) {
     registerTileset("dungeon", assetDir + "/tiles/Dungeon_Tiles.png");
     defineManualLayouts(); // must come after tilesets are registered — needs their indices
 }
+
+void RoomSceneManager::loadNpcPortraits(const std::string& assetDir) {
+    npcPortraits["Alby"] = LoadTexture((assetDir + "/npc/Alby_new/alby_face.png").c_str());
+}
+
+Texture2D RoomSceneManager::getPortrait(const std::string& name) const {
+    auto it = npcPortraits.find(name);
+    if (it != npcPortraits.end()) return it->second;
+    return Texture2D{};   // id=0 signals "no portrait" — caller checks before drawing
+}
+
 void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
     // Newt — Knight skin (idle 4 frames @32x32, run 6 frames @64x64)
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Newt/Adventurer Sprite Sheet v1.5.png", 16, 0.15f, 32, 32);
+        a.addClip("idle", assetDir + "/npc/Newt/newt_walk.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Newt/newt_walk.png", 3, 0.10f, 48, 48, 3);
 
         npcAnimators["Newt"] = std::move(a);
     }
     // Gally — Rogue skin
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Knight/Idle-Sheet.png", 4, 0.15f, 32, 32);
-        a.addClip("run",  assetDir + "/npc/Knight/Run-Sheet.png", 4, 0.10f, 48, 64);
+        a.addClip("idle", assetDir + "/npc/Gally/Gally_walk.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Gally/Gally_walk.png", 3, 0.10f, 48, 48, 3);
         npcAnimators["Gally"] = std::move(a);
     }
     // Minho — Male Adventurer pack (48x64 frames, 8 per animation)
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Minho/Idle/idle_down.png", 8, 0.15f, 48, 64);
-        a.addClip("run",  assetDir + "/npc/Minho/Walk/walk_down.png", 8, 0.10f, 48, 64);
+        a.addClip("idle", assetDir + "/npc/Minho/Minho_walk.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Minho/Minho_walk.png", 3, 0.10f, 48, 48, 3);
         npcAnimators["Minho"] = std::move(a);
     }
     // Terrisa — Female Adventurer pack (48x64 frames, 8 per animation)
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Terrisa/Idle/Idle_Down.png", 8, 0.15f, 48, 64);
-        a.addClip("run",  assetDir + "/npc/Terrisa/Walk/walk_Down.png", 8, 0.10f, 48, 64);
+        a.addClip("idle", assetDir + "/npc/Terrisa/Alby_walking.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Terrisa/Alby_walking.png", 3, 0.10f, 48, 48, 3);
         npcAnimators["Terrisa"] = std::move(a);
     }
-    // Alby — Free Adventurer pack (idle/run, 4-direction; using down-facing)
+    // Alby — using the new Alby_walking.png / Alby_hurt.png sheets (RPG Maker MZ
+    // layout, same format as Thomas's tommy_* sheets). Only the Down-facing row
+    // is used since NPCs here don't turn to face movement direction — same
+    // convention as Newt/Minho/etc.'s existing single-direction sheets.
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Alby/Archaeologist Sprite Sheet.png", 8, 0.15f, 64, 32);
+        a.addClip("idle", assetDir + "/npc/Alby/Alby_walking.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Alby/Alby_walking.png", 3, 0.10f, 48, 48, 3);
+        a.addClip("hurt", assetDir + "/npc/Alby/Alby_hurt.png",    3, 0.15f, 48, 48, 3);
         npcAnimators["Alby"] = std::move(a);
     }
     // Pete — Archaeologist sheet (idle row, 64x32 frames, 8 per row)
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Rogue/Idle-Sheet.png", 4, 0.15f, 64, 32);
-        a.addClip("run",  assetDir + "/npc/Rogue/Run-Sheet.png", 4, 0.15f, 64, 32);
+        a.addClip("idle", assetDir + "/npc/Pete/Pete_walking.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Pete/Pete_walking.png", 3, 0.10f, 48, 48, 3);
         a.addClip("attack",  assetDir + "/npc/Pete/Attack.png", 4, 0.15f, 64, 32);
         
         npcAnimators["Pete"] = std::move(a);
@@ -278,6 +345,8 @@ void RoomSceneManager::unloadAll() {
     for (auto& ts : tilesets) ts.unload();
     for (auto& kv : npcAnimators)  kv.second.unload();
     for (auto& kv : propAnimators) kv.second.unload();
+    for (auto& kv : npcPortraits)  if (kv.second.id != 0) UnloadTexture(kv.second);
+
 }
 
 void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int originY, float scale) const {
@@ -360,6 +429,6 @@ void RoomSceneManager::drawNpcs(const std::vector<NPC*>& npcsInRoom, int originX
 
         // 4. Calculate coordinates and render cleanly
         int x = originX + (int)(viewportW * (float)(i + 1) / (float)(count + 1));
-        it->second.draw(x, y, scale);
+        it->second.draw(x, y, scale/2.0f);
     }
 }
