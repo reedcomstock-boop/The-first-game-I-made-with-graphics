@@ -146,7 +146,7 @@ bool GameLoop::cmdGo(const std::string& direction) {
 
             if (roll >= avoidChance) {
                 std::cout << monster->getName() << " notices you entering the room!\n";
-                player.threat(monster);
+                player.threat(monster, combat);
                 std::cout << "Choose: attack, flee, or magic.\n";
             }
             else {
@@ -257,7 +257,7 @@ bool GameLoop::cmdUnequip(const std::string& itemName){
 bool GameLoop::cmdAttack(const std::string& targetName) {
     // If already in combat, "attack" just means "attack again this round"
     if (player.getInCombat()) {
-        player.attack(player.getCombatTarget());
+        player.attack(player.getCombatTarget(), combat);
         return true;
     }
 
@@ -271,7 +271,7 @@ bool GameLoop::cmdAttack(const std::string& targetName) {
                 player.setInCombat(true);
                 player.setCombatTarget(target);
                 std::cout << "You engage " << target->getName() << " in combat!\n";
-                player.attack(target); // first round
+                player.attack(target, combat); // first round
             } else {
                 std::cout << "you cant fight '" << targetName << "'\n";
             }
@@ -282,7 +282,7 @@ bool GameLoop::cmdAttack(const std::string& targetName) {
     return false;
 }
 bool GameLoop::cmdFlee() {
-    player.fleeComnbat();
+    player.fleeComnbat(combat);
     return true;
 }
 bool GameLoop::cmdTalk(const std::string& npcName) {
@@ -339,7 +339,7 @@ bool GameLoop::cmdUseMagic() {
         std::cout << "There's nothing to cast magic at.\n";
         return false;
     }
-    player.useMagic();
+    player.useMagic(combat);
     return true;
 }
 bool GameLoop::cmdCraft(const std::string& itemName) {

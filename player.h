@@ -32,16 +32,14 @@ public:
     const std::vector<Item*>& getItems() const;        // everything in the bag
     const std::vector<Item*>& getInventory() const;    // only equipped
 
-    void useMagic();
     void setMagic(bool hasMagic) ;
     bool hasMagic() const;
 
     bool getInCombat() const;
     void setCombatTarget(NPC* target);
     NPC* getCombatTarget() const;
-    void threat(NPC* threat);
-    void attack(NPC* target);
-    void fleeComnbat();
+ 
+    
     void setInCombat(bool combat);
 
     int32_t getLevel() const;      // now const, no side effects
@@ -69,6 +67,11 @@ public:
     bool getHarvestedVenom() const;
     void setHarvestedVenom(bool v);
 
+    void threat(NPC* threat, CombatState& out);//make the code for this
+    void attack(NPC* target, CombatState& out);//make the code for this
+    void fleeComnbat(CombatState& out);//make the code for this
+    void useMagic(CombatState& out); //make the code for this
+    
 private:
     // Additional player-specific attributes can be added here
     bool isAlive;
@@ -76,10 +79,7 @@ private:
     double maxHealth;
     double baseHealth;
 
-    void threat(NPC* threat, CombatState& out);//make the code for this
-    void attack(NPC* target, CombatState& out);//make the code for this
-    void fleeComnbat(CombatState& out);//make the code for this
-    void useMagic(CombatState& out); //make the code for this
+   
     
     double maxEnergy;
     double exp;

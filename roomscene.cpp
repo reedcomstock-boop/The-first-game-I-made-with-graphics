@@ -132,6 +132,7 @@ void RoomSceneManager::defineManualLayouts() {
         { '#', { dungeonIdx, DUNGEON_WALL_INDEX } },
         { '&', { dungeonIdx, DUNGEON_WALL_CORNER_INDEX } },
         { '.', { dungeonIdx, DUNGEON_FLOOR_INDEX } },
+    
         { ' ', { -1, -1 } },
     };
     theCage.decorLegend = {
@@ -145,13 +146,13 @@ void RoomSceneManager::defineManualLayouts() {
         DF(dungeonIdx, DUNGEON_CELL_DOOR,   6, 1),  // paired cell door next to the bars
     };
     theCage.rows = {
-        "#####################",
+        "&###################&",
         "#..............##",
         "#..............##",
         "#..............##",
         "#..............##",
         "#..............##",
-        "#####################",
+        "&###################&",
     };
     
     /*theCage.decorRows = {
@@ -175,7 +176,7 @@ void RoomSceneManager::loadTilesets(const std::string& assetDir) {
 }
 
 void RoomSceneManager::loadNpcPortraits(const std::string& assetDir) {
-    npcPortraits["Alby"] = LoadTexture((assetDir + "/npc/Alby_new/alby_face.png").c_str());
+    npcPortraits["Alby"] = LoadTexture((assetDir + "/npc/Alby/Alby_face.png").c_str());
 }
 
 Texture2D RoomSceneManager::getPortrait(const std::string& name) const {
@@ -196,8 +197,8 @@ void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
     // Gally — Rogue skin
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Gally/Gally_walk.png", 3, 0.15f, 48, 48, 3);
-        a.addClip("run",  assetDir + "/npc/Gally/Gally_walk.png", 3, 0.10f, 48, 48, 3);
+        a.addClip("idle", assetDir + "/npc/Gally/Gally_walking.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Gally/Gally_walking.png", 3, 0.10f, 48, 48, 3);
         npcAnimators["Gally"] = std::move(a);
     }
     // Minho — Male Adventurer pack (48x64 frames, 8 per animation)
@@ -210,8 +211,8 @@ void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
     // Terrisa — Female Adventurer pack (48x64 frames, 8 per animation)
     {
         StripAnimator a;
-        a.addClip("idle", assetDir + "/npc/Terrisa/Alby_walking.png", 3, 0.15f, 48, 48, 3);
-        a.addClip("run",  assetDir + "/npc/Terrisa/Alby_walking.png", 3, 0.10f, 48, 48, 3);
+        a.addClip("idle", assetDir + "/npc/Terrisa/terissa_walk.png", 3, 0.15f, 48, 48, 3);
+        a.addClip("run",  assetDir + "/npc/Terrisa/terissa_walk.png", 3, 0.10f, 48, 48, 3);
         npcAnimators["Terrisa"] = std::move(a);
     }
     // Alby — using the new Alby_walking.png / Alby_hurt.png sheets (RPG Maker MZ
@@ -230,7 +231,6 @@ void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
         StripAnimator a;
         a.addClip("idle", assetDir + "/npc/Pete/Pete_walking.png", 3, 0.15f, 48, 48, 3);
         a.addClip("run",  assetDir + "/npc/Pete/Pete_walking.png", 3, 0.10f, 48, 48, 3);
-        a.addClip("attack",  assetDir + "/npc/Pete/Attack.png", 4, 0.15f, 64, 32);
         
         npcAnimators["Pete"] = std::move(a);
     }
