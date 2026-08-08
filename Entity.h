@@ -1,6 +1,7 @@
 #ifndef ENTITY_H
 #define ENTITY_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include "stats.h"

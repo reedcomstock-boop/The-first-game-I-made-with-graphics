@@ -21,6 +21,7 @@ private:
     Player& player;
     bool playing;
     DialogueState dialogue;
+    CombatState combat;
 
     void printSituation() const;
     void showHelp() ;

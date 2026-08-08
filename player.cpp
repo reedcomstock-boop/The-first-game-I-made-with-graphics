@@ -146,79 +146,122 @@ NPC* Player::getCombatTarget() const {
 void Player::setCombatTarget(NPC* target) { 
     combatTarget = target; 
 }
-
-void Player::attack(NPC* target) {
+void Player::attack(NPC* target, CombatState& out) {
     if (!inCombat || !target) return;
+    out.target = target;
+    out.playerAnim = "attack";
 
     double damage = getStats().strength - target->getStats().defence;
-    if (damage < 0){
-        damage = 0;
-    }
+    if (damage < 0) damage = 0;
     target->setHealth(target->getHealth() - damage);
-    std::cout << "You attack " << target->getName() << " for " << damage << " damage.\n";
+    out.pushLog("You attack " + target->getName() + " for " + std::to_string((int)damage) + " damage.");
+    out.enemyMaxHealth = target->getMaxHealth();
 
     if (target->getHealth() <= 0) {
-        std::cout << target->getName() << " has been defeated!\n";
-        if (target->getName() == "The First Griever") {
-            firstGrieverDefeated = true;
-        }
+        out.enemyHealth = 0;
+        out.enemyAnim = (rand() % 2 == 0) ? "Die1" : "Die2";
+        out.pushLog(target->getName() + " has been defeated!");
+        if (target->getName() == "The First Griever") firstGrieverDefeated = true;
         setExp(target->getExperience());
-        inCombat = false;
-        combatTarget = nullptr;
+        inCombat = false; combatTarget = nullptr;
+        out.active = false;
         return;
     }
 
-    // Enemy retaliates — one round only
+    out.enemyHealth = target->getHealth();
+    out.enemyAnim = "Hit";
+
     double targetDamage = target->getStats().strength - getStats().defence;
     if (targetDamage < 0) targetDamage = 0;
     setHealth(getHealth() - targetDamage);
-    std::cout << target->getName() << " attacks you for " << targetDamage << " damage.\n";
+    out.playerHealth = getHealth();
+    out.pushLog(target->getName() + " attacks you for " + std::to_string((int)targetDamage) + " damage.");
 
     if (getHealth() <= 0) {
-        std::cout << "You have been defeated by " << target->getName() << "!\n";
-        isAlive = false;
-        inCombat = false;
-        combatTarget = nullptr;
-    }
-}
-
-void Player::threat(NPC* threat) {
-    setInCombat(true);
-    combatTarget = threat;
-    std::cout << "You are now in combat with " << threat->getName() << "!\n";
-    // No auto-attack here anymore — just starts the encounter.
-    // The player will choose attack/flee/magic on their next turn.
-}
-
-void Player::fleeComnbat() {
-    if (!inCombat || !combatTarget) {
-        std::cout << "You are not in combat.\n";
+        out.pushLog("You have been defeated by " + target->getName() + "!");
+        isAlive = false; inCombat = false; combatTarget = nullptr;
+        out.active = false;
         return;
     }
-    std::cout << "You attempt to flee from combat...\n";
+    out.active = true;
+}
+
+void Player::useMagic(CombatState& out) {
+    if (!magic) { out.pushLog("You don't know any magic yet."); return; }
+    if (!inCombat || !combatTarget) return;
+
+    out.playerAnim = "attack";
+    out.enemyAnim  = "Dizzy";
+    out.pushLog("You unleash a pulse of energy at " + combatTarget->getName() + "!");
+    out.pushLog(combatTarget->getName() + " reels, dazed, and the fight breaks off.");
+
+    if (combatTarget->getName() == "The First Griever") firstGrieverDefeated = true;
+    setExp(combatTarget->getExperience());
+
+    inCombat = false; combatTarget = nullptr;
+    out.active = false;
+}
+
+void Player::fleeComnbat(CombatState& out) {
+    if (!inCombat || !combatTarget) { out.pushLog("You are not in combat."); return; }
+    out.pushLog("You attempt to flee from combat...");
     double avoidChance = (getStats().dexterity + getStats().intelligence) / 2.0;
     int roll = rand() % 10;
+    NPC* fledFrom = combatTarget;
+
     if (roll >= avoidChance) {
-        std::cout << "You successfully fled from combat!\n";
-        if (combatTarget && combatTarget->getName() == "The First Griever") {
+        out.pushLog("You successfully fled from " + fledFrom->getName() + "!");
+        if (fledFrom->getName() == "The First Griever") {
             betrayedFriends = true;
-            std::cout << "You leave Alby and Minho to face it alone...\n";
+            out.pushLog("You leave Alby and Minho to face it alone...");
         }
-        inCombat = false;
-        combatTarget = nullptr;
+        inCombat = false; combatTarget = nullptr;
+
+        // Fleeing draws attention — any *other* live monster in the room gets
+        // one chance to notice and jump you before you actually leave.
+        if (location) {
+            for (Monster* m : location->getMonsterEntities()) {
+                if (m == fledFrom || m->getHealth() <= 0) continue;
+                double watch = (getStats().dexterity + getStats().intelligence) / 2.0;
+                if ((rand() % 10) >= watch) {
+                    out.pushLog(m->getName() + " notices you trying to leave!");
+                    threat(m, out); // re-engages: sets inCombat, combatTarget, out.active, snapshots enemy HP
+                    return;
+                }
+            }
+        }
+        out.active = false;
     } else {
-        std::cout << "You failed to flee! " << combatTarget->getName() << " attacks you!\n";
-        double targetDamage = combatTarget->getStats().strength - getStats().defence;
+        out.pushLog("You failed to flee! " + fledFrom->getName() + " attacks you!");
+        out.enemyAnim = "Attack1";
+        double targetDamage = fledFrom->getStats().strength - getStats().defence;
         if (targetDamage < 0) targetDamage = 0;
         setHealth(getHealth() - targetDamage);
+        out.playerHealth = getHealth();
         if (getHealth() <= 0) {
-            std::cout << "You have been defeated by " << combatTarget->getName() << "!\n";
-            isAlive = false;
-            inCombat = false;
-            combatTarget = nullptr;
+            out.pushLog("You have been defeated by " + fledFrom->getName() + "!");
+            isAlive = false; inCombat = false; combatTarget = nullptr;
+            out.active = false;
+            return;
         }
+        out.active = true;
     }
 }
+
+void Player::threat(NPC* t, CombatState& out) {
+    setInCombat(true);
+    combatTarget = t;
+    out.active = true;
+    out.target = t;
+    out.playerAnim = "idle";
+    out.enemyAnim  = "Idle_Nervous";
+    out.playerHealth = getHealth();
+    out.playerMaxHealth = MaxHealth();
+    out.enemyHealth = t->getHealth();
+    out.enemyMaxHealth = t->getMaxHealth();
+    out.pushLog("You are now in combat with " + t->getName() + "!");
+}
+
 void Player::useTool(const std::string& toolName) {
     Tool* tool = nullptr;
     for (auto item : inventory) {
@@ -255,41 +298,7 @@ void Player::setStats(const Stats& s) {
         s.defence - getStats().defence
     });
 }
-void Player::useMagic() {
-    if (!magic) {
-        std::cout << "You don't know any magic yet.\n";
-        return;
-    }
-    if (!inCombat || !combatTarget) return;
 
-    double damage = getStats().intelligence * 2 - combatTarget->getStats().defence;
-    if (damage < 0) damage = 0;
-    combatTarget->setHealth(combatTarget->getHealth() - damage);
-    std::cout << "You cast a spell on " << combatTarget->getName() << " for " << damage << " damage!\n";
-
-    if (combatTarget->getHealth() <= 0) {
-        std::cout << combatTarget->getName() << " has been defeated!\n";
-        if (combatTarget->getName() == "The First Griever") {
-            firstGrieverDefeated = true;
-        }
-        setExp(combatTarget->getExperience());
-        inCombat = false;
-        combatTarget = nullptr;
-        return;
-    }
-
-    double targetDamage = combatTarget->getStats().strength - getStats().defence;
-    if (targetDamage < 0) targetDamage = 0;
-    setHealth(getHealth() - targetDamage);
-    std::cout << combatTarget->getName() << " attacks you for " << targetDamage << " damage.\n";
-
-    if (getHealth() <= 0) {
-        std::cout << "You have been defeated by " << combatTarget->getName() << "!\n";
-        isAlive = false;
-        inCombat = false;
-        combatTarget = nullptr;
-    }
-}
 std::string Player::toLower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), ::tolower);
     return s;
