@@ -31,7 +31,9 @@ int main() {
 
     // Load all sprite sheets — path is relative to where ./Game runs
     SpriteAnimator animator;
-    animator.load("assets/sprites");
+    animator.load("assets/sprites/tommy_walking.png",
+               "assets/sprites/tommy_hurt.png",
+               "assets/sprites/tommy_in_battle.png");
 
     std::string inputBuffer;
     std::string lastCommand;
@@ -76,6 +78,10 @@ int main() {
             if (IsKeyDown(KEY_RIGHT)) dx += 1.0f;
             if (IsKeyDown(KEY_UP))    dy -= 1.0f;
             if (IsKeyDown(KEY_DOWN))  dy += 1.0f;
+        } else {
+            // Arrow keys scroll the conversation transcript instead of moving.
+            if (IsKeyPressed(KEY_UP))   loop.scrollDialogueHistory(-1);
+            if (IsKeyPressed(KEY_DOWN)) loop.scrollDialogueHistory(1);
         }
 
         playerX += dx * MOVE_SPEED * dt;
@@ -121,9 +127,9 @@ int main() {
 
         // --- Drive animator from game state ---
         if (player.getHealth() <= 0) {
-            animator.setState(AnimState::DeathDown);
+            animator.setState(AnimState::Death);
         } else if (player.getInCombat()) {
-            animator.setState(AnimState::AttackDown);
+            animator.setState(AnimState::Attack);
         } else if (dx != 0.0f || dy != 0.0f) {
             if (dy < 0)      animator.setState(AnimState::RunUp);
             else if (dy > 0) animator.setState(AnimState::RunDown);

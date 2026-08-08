@@ -277,21 +277,22 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
             return;
         }
         if (step == 1) {
+            CombatState combat;
             if (choice == 0) {
                 out.lines = { "Minho: 'Good choice! Combat techniques are essential for survival in the maze. You'll be fighting me for your training.'" };
                 player.setInCombat(true);
                 player.setCombatTarget(this);
-                player.threat(this);
+                player.threat(this, combat);
             } else if (choice == 1) {
                 out.lines = { "Minho: 'Endurance is key to lasting long in the maze. You'll need it to survive the trials. We'll start with some light sparring to build your stamina. Come at me!'" };
                 player.setInCombat(true);
                 player.setCombatTarget(this);
-                player.attack(this);
+                player.attack(this, combat);
             } else if (choice == 2) {
                 out.lines = { "Minho: 'Speed will help you avoid danger and reach your destination quickly and stay alive in the maze. Try to hit me - no swords, just try to hit me.'" };
                 player.setInCombat(true);
                 player.setCombatTarget(this);
-                player.attack(this);
+                player.attack(this, combat);
             } else {
                 out.lines = { "Minho: 'Strength will make you more formidable in combat. You'll be fighting a training dummy for training.'" };
             }

@@ -16,7 +16,7 @@ public:
     void registerEntity(Updatable* entity);
     void deregisterEntity(Updatable* entity);
     void updateAll();
-
+    static int32_t getGameClock();
     static int32_t getUpdateCount();
     static void resetUpdateCount();
     static void incrementUpdateCount();

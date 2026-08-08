@@ -6,7 +6,8 @@ StripAnimator::StripAnimator()
 StripAnimator::~StripAnimator() { unload(); }
 
 void StripAnimator::addClip(const std::string& name, const std::string& path,
-                             int frameCount, float frameDuration, int frameW, int frameH) {
+                             int frameCount, float frameDuration, int frameW, int frameH,
+                             int columns) {
     AnimClip clip;
     clip.name          = name;
     clip.texture       = LoadTexture(path.c_str());
@@ -14,6 +15,7 @@ void StripAnimator::addClip(const std::string& name, const std::string& path,
     clip.frameDuration = frameDuration;
     clip.frameW        = frameW;
     clip.frameH        = frameH;
+    clip.columns       = (columns > 0) ? columns : frameCount; // 0 -> single row, unchanged from before
 
     if (clip.texture.id == 0) {
         TraceLog(LOG_WARNING, "StripAnimator clip '%s' failed to load: %s",
@@ -24,7 +26,7 @@ void StripAnimator::addClip(const std::string& name, const std::string& path,
     }
 
     clips.push_back(clip);
-    if (currentClip < 0) currentClip = 0; // default to first clip added
+    if (currentClip < 0) currentClip = 0;
 }
 void StripAnimator::unload() {
     for (auto& clip : clips) UnloadTexture(clip.texture);
@@ -70,8 +72,11 @@ void StripAnimator::update(float dt) {
 void StripAnimator::draw(int x, int y, float scale) const {
     if (currentClip < 0) return;
     const AnimClip& clip = clips[currentClip];
-    if (clip.texture.id == 0) return; // failed to load — draw nothing instead of a garbage texture
-    Rectangle src = { (float)(currentFrame * clip.frameW), 0.0f,
+    if (clip.texture.id == 0) return;
+
+    int col = currentFrame % clip.columns;
+    int row = currentFrame / clip.columns;
+    Rectangle src = { (float)(col * clip.frameW), (float)(row * clip.frameH),
                        (float)clip.frameW, (float)clip.frameH };
     Rectangle dst = {
         (float)(x - (int)(clip.frameW * scale * 0.5f)),

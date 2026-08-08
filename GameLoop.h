@@ -15,15 +15,16 @@ public:
     bool isPlaying() const;
     const DialogueState& getDialogue() const { return dialogue; }
     bool isInDialogue() const { return dialogue.active; }
-
+        void scrollDialogueHistory(int delta);   // delta: -1 = older, +1 = newer
 private:
     World&  world;
     Player& player;
     bool playing;
     DialogueState dialogue;
+    CombatState combat;
 
     void printSituation() const;
-    void showHelp() const;
+    void showHelp() ;
 
     // Command handlers
     bool cmdGo(const std::string& direction);
@@ -38,7 +39,7 @@ private:
     bool cmdUseMagic();
     bool cmdTalk(const std::string& npcName);
     bool cmdLook() const;
-    bool cmdMe() const;
+    bool cmdMe();
     bool cmdCraft(const std::string& itemName);
     bool cmdSave(const std::string& filename);
     bool cmdLoad(const std::string& filename);

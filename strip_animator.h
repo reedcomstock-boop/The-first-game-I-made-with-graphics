@@ -13,6 +13,10 @@ struct AnimClip {
     float       frameDuration; // seconds per frame
     int         frameW;
     int         frameH;
+    int         columns;       // frames per row in the sheet. Old single-row
+                                // sheets set this equal to frameCount (every
+                                // frame in row 0). Grid sheets (like the x256
+                                // combat pack) pass the real column count.
 };
 
 // Lightweight animator for NPCs and animated props. SpriteAnimator assumes a
@@ -33,7 +37,8 @@ public:
     StripAnimator(StripAnimator&&) = default;
     StripAnimator& operator=(StripAnimator&&) = default;
     void addClip(const std::string& name, const std::string& path,
-                 int frameCount, float frameDuration, int frameW, int frameH);
+             int frameCount, float frameDuration, int frameW, int frameH,
+             int columns = 0);   // 0 = auto (single row, old behavior)
     void unload();
 
     void setState(const std::string& name);

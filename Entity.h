@@ -12,14 +12,43 @@ class NPC;
 // implementations fill it in and return immediately instead of blocking on
 // std::cin. graphics.cpp draws it; main.cpp/GameLoop feed player choices
 // into it from the input buffer.
+struct CombatState {
+    bool active = false;
+    NPC* target = nullptr;
+
+    std::string playerAnim = "idle"; // "idle" | "attack" | "death" -> mapped to Thomas's SpriteAnimator states
+    std::string enemyAnim  = "idle"; // exact StripAnimator clip name: Attack1/2/3, Hit, Dizzy, Die1/2, Idle_Nervous
+
+    double playerHealth = 0.0, playerMaxHealth = 0.0;
+    double enemyHealth  = 0.0, enemyMaxHealth  = 0.0;
+
+    std::vector<std::string> log;
+    static const size_t kMaxLog = 6;
+    void pushLog(const std::string& line) {
+        log.push_back(line);
+        while (log.size() > kMaxLog) log.erase(log.begin());
+    }
+    void clear() {
+        active = false; target = nullptr;
+        playerAnim = "idle"; enemyAnim = "idle";
+        log.clear();
+        playerHealth = playerMaxHealth = enemyHealth = enemyMaxHealth = 0.0;
+    }
+};
 struct DialogueState {
     bool active = false;
-    bool clear_after = false;         // whether to clear the dialogue after this one
+    bool clear_after = false;
 
     std::string speaker;
-    std::vector<std::string> lines;    // lines to show right now (paged)
-    std::vector<std::string> options;  // e.g. {"A. ...", "B. ..."} — empty if no choice pending
-    NPC* npc = nullptr;                // who we're mid-conversation with (for resuming)
+    std::vector<std::string> lines;    // the NPC's most recent lines (current page)
+    std::vector<std::string> options;  // choices for the CURRENT page only
+    NPC* npc = nullptr;
+
+    // Full transcript of everything said so far in this conversation, as
+    // "Speaker: line" strings, so the player can scroll back if they miss
+    // something. Reset whenever a new conversation starts (see clear()).
+    std::vector<std::string> history;
+    int scrollOffset = 0;   // 0 = viewing the live/current page; >0 = scrolled back
 
     void clear() {
         active = false;
@@ -28,6 +57,17 @@ struct DialogueState {
         lines.clear();
         options.clear();
         npc = nullptr;
+        history.clear();
+        scrollOffset = 0;
+    }
+
+    // Call right after lines/speaker are set by talk()/continueTalk(), so
+    // the transcript always includes whatever's currently on screen too.
+    void recordHistory() {
+        for (const auto& line : lines) {
+            history.push_back(speaker + ": " + line);
+        }
+        scrollOffset = 0;   // any new line snaps the view back to "live"
     }
 };
 
@@ -70,11 +110,12 @@ class NPC : public Entity {
 public:
     NPC(const std::string& name, const std::string& description, double health, const Stats& stats);
     void update() override;
-    // talk() now fills `out` and returns immediately — no blocking I/O.
     virtual void talk(Player& player, DialogueState& out);
-    // Called when the player picks an option while mid-conversation with
-    // this NPC. `choiceIndex` is 0-based (A=0, B=1, ...).
     virtual void continueTalk(Player& player, DialogueState& out, int choiceIndex);
+    double getMaxHealth() const { return maxHealth; }
+
+protected:
+    double maxHealth;
 };
 
 class Helper : public NPC {
