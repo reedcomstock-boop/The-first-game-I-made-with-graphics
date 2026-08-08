@@ -546,7 +546,7 @@ void drawGame(const World& world, const Player& player,
               const DialogueState& dialogue, float playerRelX, float playerRelY) {
     ensureSceneLoaded(world);
     g_scene.update(GetFrameTime());
-
+    drawGameClock();
     BeginDrawing();
     ClearBackground(C_BG);
     if (dialogue.active) {
