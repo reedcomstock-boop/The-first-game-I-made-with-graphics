@@ -51,9 +51,8 @@ public:
     void loadNpcSprites(const std::string& assetDir);
     void loadProps(const std::string& assetDir);
     void loadMonsterSprites(const std::string& assetDir);
-    
     void loadNpcPortraits(const std::string& assetDir);
-    Texture2D getPortrait(const std::string& name) const;  // returns {0} (id=0) if this NPC has none
+    Texture2D getPortrait(const std::string& name) const;  // id==0 if this NPC has none
 
     // Builds a default floor+wall layout (with a couple of themed
     // overrides — water for The Lake, dungeon tiles for maze rooms) for
@@ -79,10 +78,11 @@ public:
 private:
     std::vector<TileSet> tilesets;
     std::unordered_map<std::string, int> tilesetIndex; // name -> index into tilesets
-    std::unordered_map<std::string, Texture2D> npcPortraits;
+
     std::unordered_map<std::string, RoomScene> rooms; // room name -> layout
     std::unordered_map<std::string, StripAnimator> npcAnimators;  // npc name -> animator
     std::unordered_map<std::string, StripAnimator> propAnimators; // clip name -> animator
+    std::unordered_map<std::string, Texture2D> npcPortraits;      // npc name -> face portrait
 
     int registerTileset(const std::string& name, const std::string& path);
 };

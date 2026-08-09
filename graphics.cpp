@@ -402,10 +402,14 @@ static void drawDialogue(const DialogueState& dlg) {
     // draws for NPCs that actually have one loaded (Alby only, for now).
     Texture2D portrait = g_scene.getPortrait(dlg.speaker);
     if (portrait.id != 0) {
-        float portraitSize = 96 * SY();   // on-screen box; native art is 144x144
+        float portraitSize = 120 * SY();   // on-screen box; native art is 144x144
         float px = panel.x + panel.width  - portraitSize - PAD();
         float py = panel.y + panel.height - portraitSize - PAD();
-        Rectangle src = { 0, 0, (float)portrait.width, (float)portrait.height };
+
+        // Portrait sheets are 576x288 canvases where only the top-left 144x144
+        // is actual face art — the rest is transparent padding. Crop to just
+        // that region instead of stretching the whole (mostly empty) canvas.
+        Rectangle src = { 0, 0, 144, 144 };
         Rectangle dst = { px, py, portraitSize, portraitSize };
         DrawTexturePro(portrait, src, dst, {0, 0}, 0.0f, WHITE);
         DrawRectangleLinesEx(dst, 1.5f, C_BORDER);

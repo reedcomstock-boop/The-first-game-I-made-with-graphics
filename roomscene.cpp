@@ -1,5 +1,5 @@
 #include "roomscene.h"
-
+ 
 // Pixel Crawler's tile sheets are built entirely from autotile connector
 // pieces (crosses, hooks, corners meant to combine into a matched edge set) —
 // there is no single index in any of these sheets that renders as a flat
@@ -12,7 +12,7 @@ static const Color TILESET_COLORS[4] = {
     { 40, 90, 140, 255 },   // water — blue
     { 35, 35, 42, 255 },    // dungeon — dark stone
 };
-
+ 
 // Tile picks — index into each 16x16 tileset grid (row*columns+col).
 // Pixel Crawler's tilesets are built for autotiling: most tiles are "island"
 // or "connector" pieces that are only solid in part of the 16x16 cell (a
@@ -25,37 +25,48 @@ static const int FLOOR_TILE_INDEX   = 16;  // Floors_Tiles.png  row 0, col 16 �
 static const int WALL_TILE_INDEX    = 27;  // Wall_Tiles.png    row 1, col 2  — solid, tiles clean
 static const int WATER_TILE_INDEX   = 0;   // Water_tiles.png   row 0, col 0  — solid, tiles clean
 static const int DUNGEON_TILE_INDEX = 0;   // Dungeon_Tiles.png row 0, col 0  — solid, tiles clean
-
+ 
 // ---------------------------------------------------------------------
 // Dungeon_Tiles.png catalog — indices are col/row within the 25x25 grid.
+// Every coordinate below was verified by cropping the actual PNG with PIL
+// and viewing the result — do not trust a gridded screenshot over this.
 // TileRef fills use the flat index (row*25+col); DecorFeature objects use
 // a {col,row,w,h} rect that gets combined with dungeonIdx + a grid
 // placement at the point of use (see theCage for the pattern).
 // ---------------------------------------------------------------------
-
-// --- Repeatable TileRef fills (row*25+col) ---
+ 
 // --- Repeatable TileRef fills (row*25+col) ---
 static const int DUNGEON_WALL_INDEX        = 2;
 static const int DUNGEON_WALL_CORNER_INDEX = 3;
 static const int DUNGEON_FLOOR_INDEX       = 55;
-
+ 
 // static const int DUNGEON_RAIL_CAP_INDEX    = 14 * 25 + 0; // row14,col0 — top rail, any zone
 // static const int DUNGEON_RAIL_ORANGE_INDEX = 16 * 25 + 1; // row16,col1 — railing body, orange zone
 // static const int DUNGEON_RAIL_BLUE_INDEX   = 16 * 25 + 4; // row16,col4 — railing body, blue zone
 // static const int DUNGEON_RAIL_GREEN_INDEX  = 16 * 25 + 7; // row16,col7 — railing body, green zone
-
+ 
 // --- Single-cell decor ---
 static const int DUNGEON_RIVET_INDEX       = 2 * 25 + 8;
 static const int DUNGEON_STAIN_A_INDEX     = 13 * 25 + 6;
 // static const int DUNGEON_STAIN_B_INDEX  = 13 * 25 + 7; // row13,col7 — blood stain variant B
-
+ 
 // --- Multi-cell decor ---
 struct FeatureRect { int col, row, w, h; };
-
-static const FeatureRect DUNGEON_DOOR_ARCH   = { 0, 7, 2, 3 };
-static const FeatureRect DUNGEON_PRISON_BARS = { 9, 3, 1, 8 };
-static const FeatureRect DUNGEON_CELL_DOOR   = { 8, 3, 1, 7 };
-
+ 
+// Confirmed by direct pixel crop: arched stone doorway w/ wood panel.
+static const FeatureRect DUNGEON_DOOR_ARCH = { 0, 7, 2, 3 };
+ 
+// Was {8,3,1,7} — row3 is still background, the door art doesn't start
+// until row4 and is only 6 rows tall, not 7. Fixed via gridded crop.
+static const FeatureRect DUNGEON_CELL_DOOR = { 8, 4, 1, 6 };
+ 
+// Was one rect {9,3,1,8} spanning TWO unrelated graphics with a blank/
+// transparent gap in between (straight bars end at row7, gate lattice
+// starts at row8) — that gap is what rendered as the broken/see-through
+// bar artifact in-game. Split into the two real assets.
+static const FeatureRect DUNGEON_PRISON_BARS_STRAIGHT = { 9, 4, 1, 4 }; // solid vertical bars
+static const FeatureRect DUNGEON_PRISON_GATE_LATTICE  = { 9, 8, 1, 2 }; // crossed grate, separate asset
+ 
 // static const FeatureRect DUNGEON_VENT_CONSOLE     = { 0,  2, 3, 2 };
 // static const FeatureRect DUNGEON_BULLETIN_BOARD   = { 17, 0, 3, 3 };
 // static const FeatureRect DUNGEON_HATCH_FRAME      = { 21, 1, 2, 2 };
@@ -63,17 +74,21 @@ static const FeatureRect DUNGEON_CELL_DOOR   = { 8, 3, 1, 7 };
 // static const FeatureRect DUNGEON_CRATE_RACK_SM    = { 20, 4, 3, 2 };
 // static const FeatureRect DUNGEON_BENCH            = { 0,  13, 4, 1 };
 // static const FeatureRect DUNGEON_CRACKED_WALL     = { 8,  13, 1, 4 };
-// static const FeatureRect DUNGEON_ORB_ORANGE       = { 0,  19, 3, 3 };
-// static const FeatureRect DUNGEON_ORB_ORANGE_CAP   = { 1,  18, 1, 1 };
-// static const FeatureRect DUNGEON_ORB_BLUE         = { 4,  19, 3, 3 };
-// static const FeatureRect DUNGEON_ORB_BLUE_CAP     = { 5,  18, 1, 1 };
-// static const FeatureRect DUNGEON_ORB_GREEN        = { 8,  19, 3, 3 };
-// static const FeatureRect DUNGEON_ORB_GREEN_CAP    = { 9,  18, 1, 1 };
-
+ 
+// Orb clusters (bottom of sheet). Blue/green were off by one column vs the
+// orange one — confirmed by cropping cols 0-12, rows 17-22 with a grid.
+// Currently unused by any room; left here (commented) for when needed.
+// static const FeatureRect DUNGEON_ORB_ORANGE     = { 0, 19, 3, 3 };
+// static const FeatureRect DUNGEON_ORB_ORANGE_CAP = { 1, 18, 1, 1 };
+// static const FeatureRect DUNGEON_ORB_BLUE       = { 3, 19, 3, 3 };  // was {4,19,3,3}
+// static const FeatureRect DUNGEON_ORB_BLUE_CAP   = { 4, 18, 1, 1 };  // was {5,18,1,1}
+// static const FeatureRect DUNGEON_ORB_GREEN      = { 6, 19, 3, 3 };  // was {8,19,3,3}
+// static const FeatureRect DUNGEON_ORB_GREEN_CAP  = { 7, 18, 1, 1 };  // was {9,18,1,1}
+ 
 // Approximate — verify visually before uncommenting/using:
 // static const FeatureRect DUNGEON_BANNER_APPROX    = { 4,  10, 1, 4 };
 // static const FeatureRect DUNGEON_FOLIAGE_APPROX   = { 12, 0,  2, 5 };
-// Flagged as approximate — verify visually before relying on these:
+ 
 
 RoomSceneManager::RoomSceneManager() {}
 RoomSceneManager::~RoomSceneManager() {}
@@ -146,7 +161,8 @@ void RoomSceneManager::defineManualLayouts() {
     };
     theCage.decorFeatures = {
         DF(dungeonIdx, DUNGEON_DOOR_ARCH,   6, 1),  // the door, same placement as before
-        DF(dungeonIdx, DUNGEON_PRISON_BARS, 1, 0),  // bars along the west wall
+        DF(dungeonIdx, DUNGEON_PRISON_BARS_STRAIGHT, 1, 0),  // bars along the west wall
+        DF(dungeonIdx, DUNGEON_PRISON_GATE_LATTICE, 9, 0),  // gate at the top of the cell
         DF(dungeonIdx, DUNGEON_CELL_DOOR,   6, 1),  // paired cell door next to the bars
     };
     theCage.rows = {
