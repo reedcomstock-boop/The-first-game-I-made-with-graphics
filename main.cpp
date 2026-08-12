@@ -6,6 +6,7 @@
 #include "player.h"
 #include "items.h"
 #include "Entity.h"
+#include "Notifications.h"
 #include "stats.h"
 #include <iostream>
 #include "raylib.h"
@@ -148,6 +149,7 @@ int main() {
         }
 
         animator.update(dt);
+        Notifications::update(dt);
 
         // --- Draw ---
         drawGame(world, player, inputBuffer, animator, loop.getDialogue(), playerX, playerY);

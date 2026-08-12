@@ -1,5 +1,6 @@
 #include "graphics.h"
 #include "raylib.h"
+#include "Notifications.h"
 #include "roomscene.h"
 #include "updater.h"
 #include <string>
@@ -301,9 +302,24 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     DrawRectangleLinesEx(sceneRect, 1.5f, C_BORDER);
     y += sceneH + (int32_t)(10 * SY());
 
-    // Description
+    
     y = drawWrapped(room->getDescription(), x, y, mW, FS(), C_TEXT, 3);
-    y += (int32_t)(8 * SY());
+    y += (int)(8 * SY());
+
+    // Temporary announcements — level ups, pickups, world-stage shifts, etc.
+    const auto& notes = Notifications::getAll();
+    if (!notes.empty()) {
+        Rectangle noteBox = { (float)x, (float)y, (float)mW,
+                               LINE_H() * (float)notes.size() + 12 * SY() };
+        drawPanel(noteBox, C_INPUT_BG, C_ACCENT);
+        int ny = y + (int)(6 * SY());
+        for (const auto& n : notes) {
+            DrawText(n.text.c_str(), x + (int)(8 * SX()), ny, FS(), C_ACCENT);
+            ny += LINE_H();
+        }
+        y += (int)noteBox.height + (int)(8 * SY());
+    }
+
 
     // Two-column layout: NPCs + Items left, Exits right
     int32_t colW  = mW / 2 - (int32_t)(8 * SX());

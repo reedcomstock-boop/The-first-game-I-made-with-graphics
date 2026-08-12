@@ -58,7 +58,7 @@ static const FeatureRect DUNGEON_DOOR_ARCH = { 0, 7, 2, 3 };
  
 // Was {8,3,1,7} — row3 is still background, the door art doesn't start
 // until row4 and is only 6 rows tall, not 7. Fixed via gridded crop.
-static const FeatureRect DUNGEON_CELL_DOOR = { 8, 4, 1, 6 };
+static const FeatureRect DUNGEON_CELL_DOOR =  { 7, 6, 2, 4 };
  
 // Was one rect {9,3,1,8} spanning TWO unrelated graphics with a blank/
 // transparent gap in between (straight bars end at row7, gate lattice
@@ -160,10 +160,11 @@ void RoomSceneManager::defineManualLayouts() {
         { ' ', { -1, -1 } },
     };
     theCage.decorFeatures = {
-        DF(dungeonIdx, DUNGEON_DOOR_ARCH,   6, 1),  // the door, same placement as before
-        DF(dungeonIdx, DUNGEON_PRISON_BARS_STRAIGHT, 1, 0),  // bars along the west wall
-        DF(dungeonIdx, DUNGEON_PRISON_GATE_LATTICE, 9, 0),  // gate at the top of the cell
-        DF(dungeonIdx, DUNGEON_CELL_DOOR,   6, 1),  // paired cell door next to the bars
+    DF(dungeonIdx, DUNGEON_DOOR_ARCH,            6, 1),
+    DF(dungeonIdx, DUNGEON_CELL_DOOR,            4, 1),  // barred gate, next to the door
+    DF(dungeonIdx, DUNGEON_PRISON_BARS_STRAIGHT, 1, 0),
+    DF(dungeonIdx, DUNGEON_PRISON_GATE_LATTICE,  9, 0),
+
     };
     theCage.rows = {
         "&###################&",

@@ -2,8 +2,8 @@ CXX = g++
 CFLAGS = -Wall -Wextra -pedantic -Werror -std=c++17 -I/opt/homebrew/include
 LDFLAGS = -L/opt/homebrew/lib -lraylib
 
-Game: main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o
-	$(CXX) -o Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o $(LDFLAGS)
+Game: main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o
+	$(CXX) -o Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o $(LDFLAGS)
 
 main.o: main.cpp
 	$(CXX) -c main.cpp $(CFLAGS)
@@ -33,5 +33,7 @@ roomscene.o: roomscene.cpp roomscene.h
 	$(CXX) -c roomscene.cpp $(CFLAGS)
 save.o: save.cpp save.h
 	$(CXX) -c save.cpp $(CFLAGS)
+Notifications.o: Notifications.cpp Notifications.h
+	$(CXX) -c Notifications.cpp $(CFLAGS)
 clean:
-	rm -f Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o
+	rm -f Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o

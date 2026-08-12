@@ -3,6 +3,7 @@
 #include "Entity.h" 
 #include "save.h"
 #include "world.h"
+#include "Notifications.h"
 #include <iostream>
 #include <sstream>
 #include <cctype>
@@ -165,18 +166,18 @@ bool GameLoop::cmdLook()const{
 bool GameLoop::cmdPickup(const std::string& itemName) {
     Room* loc = player.getLocation();
     if (!loc) return false;
-
     for (Item* item : loc->getItems()) {
         if (toLower(item->getName()) == toLower(itemName)) {
             player.PickUpItem(item);
             loc->removeItem(item);
-            std::cout << "Picked up '" << item->getName() << "'.\n";
+            Notifications::push("Picked up '" + item->getName() + "'.");
             return true;
         }
     }
-    std::cout << "No item called '" << itemName << "' here.\n";
+    Notifications::push("No item called '" + itemName + "' here.");
     return false;
 }
+
 bool GameLoop::cmdDrop(const std::string& itemName){
     Room* loc = player.getLocation();
 
@@ -449,8 +450,7 @@ bool GameLoop::checkWorldProgression() {
     if (pl >= 1 && wl == WorldStage::Glade) {
         world.setWorldLevel(WorldStage::CampExpanded);
         world.createWorldLvlTwo();
-        std::cout << "\n[The world shifts around you — things are changing...]\n";
-        changed = true;
+        Notifications::push("The world shifts around you — things are changing...");        changed = true;
     }
 
     // Stage 2 -> 3: first trip into the maze with Alby + Minho -> First Griever
@@ -459,7 +459,7 @@ bool GameLoop::checkWorldProgression() {
         world.setWorldLevel(WorldStage::MazeOpen);
         world.createMaze();
         world.createFirstGrieverEncounter();
-        std::cout << "\n[The maze opens before you. Alby and Minho fall in step beside you...]\n";
+        Notifications::push("[The maze opens before you. Alby and Minho fall in step beside you...]")   ;
         changed = true;
     }
 
@@ -469,7 +469,7 @@ bool GameLoop::checkWorldProgression() {
         (player.getFirstGrieverDefeated() || player.getBetrayedFriends())) {
         world.setWorldLevel(WorldStage::SafeZoneBroken);
         world.createSafeZoneBreach();
-        std::cout << "\n[Something's wrong. The walls haven't moved. The Glade isn't safe anymore.]\n";
+        Notifications::push("[Something's wrong. The walls haven't moved. The Glade isn't safe anymore.]");
         changed = true;
     }
 
@@ -477,7 +477,7 @@ bool GameLoop::checkWorldProgression() {
     if (wl == WorldStage::SafeZoneBroken && loc->getName() == "The Cage") {
         world.setWorldLevel(WorldStage::TerrisaArrives);
         world.createTerrisaArrival();
-        std::cout << "\n[A girl stumbles out of the hatch, unconscious...]\n";
+        Notifications::push("[A girl stumbles out of the hatch, unconscious...]");
         changed = true;
     }
 
@@ -485,7 +485,7 @@ bool GameLoop::checkWorldProgression() {
     if (wl == WorldStage::TerrisaArrives && pl >= 2) {
         world.setWorldLevel(WorldStage::MapRevealed);
         world.createMapReveal();
-        std::cout << "\n[Minho and Newt lay out the map of the maze's phases for you.]\n";
+        Notifications::push("[Minho and Newt lay out the map of the maze's phases for you.]")   ;
         changed = true;
     }
 
@@ -494,14 +494,14 @@ bool GameLoop::checkWorldProgression() {
     if (wl == WorldStage::MapRevealed && loc->getName() == "The Maze") {
         world.setWorldLevel(WorldStage::MazePhaseTwo);
         world.createMazePhaseTwo();
-        std::cout << "\n[The maze reconfigures itself around you...]\n";
+        Notifications::push("[The maze reconfigures itself around you...]")   ;
         changed = true;
     }
 
     // Stage 7 -> 8: player + Minho reach the sealed exit door.
     if (wl == WorldStage::MazePhaseTwo && loc->getName() == "Maze7") {
         world.setWorldLevel(WorldStage::MazeExitFound);
-        std::cout << "\n[You and Minho find a massive sealed door. It won't budge — not yet.]\n";
+        Notifications::push("[You and Minho find a massive sealed door. It won't budge — not yet.]");
         changed = true;
     }
 
@@ -510,9 +510,9 @@ bool GameLoop::checkWorldProgression() {
         world.setWorldLevel(WorldStage::GrieverReturnEncounter);
         world.createGrieverReturnEncounter();
         if (player.getFirstGrieverDefeated())
-            std::cout << "\n[You find the First Griever's corpse still slumped where you left it.]\n";
+            Notifications::push("[You find the First Griever's corpse still slumped where you left it.]");
         else
-            std::cout << "\n[The First Griever is still out there — and it's found you again.]\n";
+            Notifications::push("[The First Griever is still out there — and it's found you again.]");
         changed = true;
     }
 
@@ -522,7 +522,7 @@ bool GameLoop::checkWorldProgression() {
         (player.hasItem("Griever Remains") || player.getHarvestedVenom() || player.getFirstGrieverDefeated())) {
         world.setWorldLevel(WorldStage::FinalPreparation);
         world.createFinalPreparation();
-        std::cout << "\n[Terrisa meets you at camp, eyeing what you brought back.]\n";
+        Notifications::push("[Terrisa meets you at camp, eyeing what you brought back.]");
         changed = true;
     }
 
@@ -531,7 +531,7 @@ bool GameLoop::checkWorldProgression() {
     if (wl == WorldStage::FinalPreparation && player.hasMagic()) {
         world.setWorldLevel(WorldStage::FinalAssault);
         world.createFinalAssault();
-        std::cout << "\n[The helpers gather. It's time to finish what the maze started.]\n";
+        Notifications::push("[The helpers gather. It's time to finish what the maze started.]");
         changed = true;
     }
 
