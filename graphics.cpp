@@ -152,13 +152,6 @@ static int32_t drawWrapped(const std::string& text, int32_t x, int32_t y, int32_
 //-----------------------------------------------------------------------
 // drawGameClock
 // -----------------------------------------------------------------------
-/*static void drawGameClock() {
-    int32_t updateCount = Updater::getUpdateCount();
-    std::string text = "Game Clock: " + std::to_string(updateCount);
-    DrawText(text.c_str(), 10, 10, FS_SMALL, WHITE);
-*/// -----------------------------------------------------------------------
-// drawGameTime
-// -----------------------------------------------------------------------
 static void drawGameClock() {
     Rectangle clockPanel = Game_Clock_PANEL();
     drawPanel(clockPanel, C_PANEL, C_BORDER);
@@ -303,47 +296,34 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     y += sceneH + (int32_t)(10 * SY());
 
     
+    // Description
+    int descX = x, descY = y, descW = mW;
     y = drawWrapped(room->getDescription(), x, y, mW, FS(), C_TEXT, 3);
     y += (int)(8 * SY());
 
-    // Temporary announcements — level ups, pickups, world-stage shifts, etc.
-    const auto& notes = Notifications::getAll();
-    if (!notes.empty()) {
-        Rectangle noteBox = { (float)x, (float)y, (float)mW,
-                               LINE_H() * (float)notes.size() + 12 * SY() };
-        drawPanel(noteBox, C_INPUT_BG, C_ACCENT);
-        int ny = y + (int)(6 * SY());
-        for (const auto& n : notes) {
-            DrawText(n.text.c_str(), x + (int)(8 * SX()), ny, FS(), C_ACCENT);
-            ny += LINE_H();
-        }
-        y += (int)noteBox.height + (int)(8 * SY());
-    }
+    // Two-column layout: NPCs + Items left, Exits right — position is
+    // computed as if there were no notifications, so the overlay below
+    // never shifts this.
+    int colW  = mW / 2 - (int)(8 * SX());
+    int leftX = x;
+    int rightX = x + colW + (int)(16 * SX());
+    int leftY  = y;
+    int rightY = y;
 
-
-    // Two-column layout: NPCs + Items left, Exits right
-    int32_t colW  = mW / 2 - (int32_t)(8 * SX());
-    int32_t leftX = x;
-    int32_t rightX = x + colW + (int32_t)(16 * SX());
-    int32_t leftY  = y;
-    int32_t rightY = y;
-
-    // NPCs
     if (!room->getNpcEntities().empty()) {
         DrawText("Characters", leftX, leftY, FS_SMALL(), C_DIM);
-        leftY += LINE_H() - (int32_t)(2 * SY());
+        leftY += LINE_H() - (int)(2 * SY());
         for (const auto& npc : room->getNpcEntities()) {
             std::string line = "  * " + npc->getName();
             DrawText(line.c_str(), leftX, leftY, FS(), C_NPC);
             leftY += LINE_H();
         }
-        leftY += (int32_t)(6 * SY());
+        leftY += (int)(6 * SY());
     }
 
-    // Items
     if (!room->getItems().empty()) {
         DrawText("Items", leftX, leftY, FS_SMALL(), C_DIM);
-        leftY += LINE_H() - (int32_t)(2 * SY());
+        leftY += LINE_H() - (int)(2 * SY());
         for (const auto& item : room->getItems()) {
             std::string line = "  + " + item->getName();
             DrawText(line.c_str(), leftX, leftY, FS(), C_ITEM);
@@ -351,18 +331,35 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
         }
     }
 
-    // Exits
     DrawText("Exits", rightX, rightY, FS_SMALL(), C_DIM);
-    rightY += LINE_H() - (int32_t)(2 * SY());
+    rightY += LINE_H() - (int)(2 * SY());
     for (const auto& e : room->getExits()) {
         std::string line = "  " + e.first + " -> " + e.second->getName();
         DrawText(line.c_str(), rightX, rightY, FS(), C_EXIT);
         rightY += LINE_H();
     }
 
-    // Divider between columns
-    int32_t divX = x + colW + (int32_t)(8 * SX());
-    DrawLine(divX, y, divX, (int32_t)roomPanel.y + (int32_t)roomPanel.height - (int32_t)PAD(), C_BORDER);
+    int divX = x + colW + (int)(8 * SX());
+    DrawLine(divX, y, divX, (int)roomPanel.y + (int)roomPanel.height - (int)PAD(), C_BORDER);
+
+    // Notification overlay — floats on top of the description area instead
+    // of pushing the NPC/item/exit lists down. Drawn last so it layers
+    // above everything beneath it.
+    const auto& notes = Notifications::getAll();
+    if (!notes.empty()) {
+        Rectangle noteBox = { (float)descX - 4 * SX(), (float)descY - 4 * SY(),
+                               (float)descW + 8 * SX(),
+                               LINE_H() * (float)notes.size() + 12 * SY() };
+        Color overlayBg = { C_INPUT_BG.r, C_INPUT_BG.g, C_INPUT_BG.b, 235 };
+        DrawRectangleRec(noteBox, overlayBg);
+        DrawRectangleLinesEx(noteBox, 1.5f, C_ACCENT);
+        int ny = (int)noteBox.y + (int)(6 * SY());
+        for (const auto& n : notes) {
+            DrawText(n.text.c_str(), descX + (int)(8 * SX()), ny, FS(), C_ACCENT);
+            ny += LINE_H();
+        }
+    }
+
 }
 
 // -----------------------------------------------------------------------

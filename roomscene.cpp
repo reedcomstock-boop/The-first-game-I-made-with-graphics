@@ -40,10 +40,10 @@ static const int DUNGEON_WALL_INDEX        = 2;
 static const int DUNGEON_WALL_CORNER_INDEX = 3;
 static const int DUNGEON_FLOOR_INDEX       = 55;
  
-// static const int DUNGEON_RAIL_CAP_INDEX    = 14 * 25 + 0; // row14,col0 — top rail, any zone
-// static const int DUNGEON_RAIL_ORANGE_INDEX = 16 * 25 + 1; // row16,col1 — railing body, orange zone
-// static const int DUNGEON_RAIL_BLUE_INDEX   = 16 * 25 + 4; // row16,col4 — railing body, blue zone
-// static const int DUNGEON_RAIL_GREEN_INDEX  = 16 * 25 + 7; // row16,col7 — railing body, green zone
+static const int DUNGEON_RAIL_CAP_INDEX    = 14 * 25 + 0; // row14,col0 — top rail, any zone
+static const int DUNGEON_RAIL_ORANGE_INDEX = 16 * 25 + 1; // row16,col1 — railing body, orange zone
+static const int DUNGEON_RAIL_BLUE_INDEX   = 16 * 25 + 4; // row16,col4 — railing body, blue zone
+static const int DUNGEON_RAIL_GREEN_INDEX  = 16 * 25 + 7; // row16,col7 — railing body, green zone
  
 // --- Single-cell decor ---
 static const int DUNGEON_RIVET_INDEX       = 2 * 25 + 8;
@@ -54,7 +54,7 @@ static const int DUNGEON_STAIN_A_INDEX     = 13 * 25 + 6;
 struct FeatureRect { int col, row, w, h; };
  
 // Confirmed by direct pixel crop: arched stone doorway w/ wood panel.
-static const FeatureRect DUNGEON_DOOR_ARCH = { 0, 7, 2, 3 };
+[[maybe_unused]] static const FeatureRect DUNGEON_DOOR_ARCH = { 0, 7, 2, 3 };
  
 // Was {8,3,1,7} — row3 is still background, the door art doesn't start
 // until row4 and is only 6 rows tall, not 7. Fixed via gridded crop.
@@ -67,27 +67,27 @@ static const FeatureRect DUNGEON_CELL_DOOR =  { 7, 6, 2, 4 };
 static const FeatureRect DUNGEON_PRISON_BARS_STRAIGHT = { 9, 4, 1, 4 }; // solid vertical bars
 static const FeatureRect DUNGEON_PRISON_GATE_LATTICE  = { 9, 8, 1, 2 }; // crossed grate, separate asset
  
-// static const FeatureRect DUNGEON_VENT_CONSOLE     = { 0,  2, 3, 2 };
-// static const FeatureRect DUNGEON_BULLETIN_BOARD   = { 17, 0, 3, 3 };
-// static const FeatureRect DUNGEON_HATCH_FRAME      = { 21, 1, 2, 2 };
-// static const FeatureRect DUNGEON_CRATE_RACK_LG    = { 17, 3, 3, 3 };
-// static const FeatureRect DUNGEON_CRATE_RACK_SM    = { 20, 4, 3, 2 };
-// static const FeatureRect DUNGEON_BENCH            = { 0,  13, 4, 1 };
-// static const FeatureRect DUNGEON_CRACKED_WALL     = { 8,  13, 1, 4 };
+static const FeatureRect DUNGEON_VENT_CONSOLE     = { 0,  2, 3, 2 };
+static const FeatureRect DUNGEON_BULLETIN_BOARD   = { 17, 0, 3, 3 };
+static const FeatureRect DUNGEON_HATCH_FRAME      = { 21, 1, 2, 2 };
+static const FeatureRect DUNGEON_CRATE_RACK_LG    = { 17, 3, 3, 3 };
+static const FeatureRect DUNGEON_CRATE_RACK_SM    = { 20, 4, 3, 2 };
+static const FeatureRect DUNGEON_BENCH            = { 0,  13, 4, 1 };
+static const FeatureRect DUNGEON_CRACKED_WALL     = { 8,  13, 1, 4 };
  
 // Orb clusters (bottom of sheet). Blue/green were off by one column vs the
 // orange one — confirmed by cropping cols 0-12, rows 17-22 with a grid.
 // Currently unused by any room; left here (commented) for when needed.
-// static const FeatureRect DUNGEON_ORB_ORANGE     = { 0, 19, 3, 3 };
-// static const FeatureRect DUNGEON_ORB_ORANGE_CAP = { 1, 18, 1, 1 };
+ static const FeatureRect DUNGEON_ORB_ORANGE     = { 0, 19, 3, 3 };
+ static const FeatureRect DUNGEON_ORB_ORANGE_CAP = { 1, 18, 1, 1 };
 // static const FeatureRect DUNGEON_ORB_BLUE       = { 3, 19, 3, 3 };  // was {4,19,3,3}
 // static const FeatureRect DUNGEON_ORB_BLUE_CAP   = { 4, 18, 1, 1 };  // was {5,18,1,1}
 // static const FeatureRect DUNGEON_ORB_GREEN      = { 6, 19, 3, 3 };  // was {8,19,3,3}
 // static const FeatureRect DUNGEON_ORB_GREEN_CAP  = { 7, 18, 1, 1 };  // was {9,18,1,1}
  
 // Approximate — verify visually before uncommenting/using:
-// static const FeatureRect DUNGEON_BANNER_APPROX    = { 4,  10, 1, 4 };
-// static const FeatureRect DUNGEON_FOLIAGE_APPROX   = { 12, 0,  2, 5 };
+static const FeatureRect DUNGEON_BANNER_APPROX    = { 4,  10, 1, 4 };
+static const FeatureRect DUNGEON_FOLIAGE_APPROX   = { 12, 0,  2, 5 };
  
 
 RoomSceneManager::RoomSceneManager() {}
@@ -114,6 +114,13 @@ struct ManualLayout {
     std::unordered_map<char, TileRef> legend;
     std::unordered_map<char, TileRef> decorLegend;
 };
+// Overload: accept a flat tile index (row*25+col) for single-cell features.
+static DecorFeature DF(int tilesetId, int flatTileIndex, int gridCol, int gridRow) {
+    int col = flatTileIndex % 25;
+    int row = flatTileIndex / 25;
+    return { tilesetId, col, row, 1, 1, gridCol, gridRow };
+}
+
 static DecorFeature DF(int tilesetId, const FeatureRect& r, int gridCol, int gridRow) {
     return { tilesetId, r.col, r.row, r.w, r.h, gridCol, gridRow };
 }
@@ -160,11 +167,16 @@ void RoomSceneManager::defineManualLayouts() {
         { ' ', { -1, -1 } },
     };
     theCage.decorFeatures = {
-    DF(dungeonIdx, DUNGEON_DOOR_ARCH,            6, 1),
-    DF(dungeonIdx, DUNGEON_CELL_DOOR,            4, 1),  // barred gate, next to the door
+    //DF(dungeonIdx, DUNGEON_DOOR_ARCH,            6, 1),
+    //DF(dungeonIdx, DUNGEON_CELL_DOOR,            4, 1),  // barred gate, next to the door
     DF(dungeonIdx, DUNGEON_PRISON_BARS_STRAIGHT, 1, 0),
     DF(dungeonIdx, DUNGEON_PRISON_GATE_LATTICE,  9, 0),
-
+    DF(dungeonIdx, DUNGEON_ORB_ORANGE,           1, 2),
+    DF(dungeonIdx, DUNGEON_ORB_ORANGE_CAP,       2, 1),
+    DF(dungeonIdx, DUNGEON_ORB_ORANGE,           6, 2),
+    DF(dungeonIdx, DUNGEON_ORB_ORANGE_CAP,       7, 1),  
+    DF(dungeonIdx, DUNGEON_ORB_ORANGE,           12, 2),
+    DF(dungeonIdx, DUNGEON_ORB_ORANGE_CAP,       13, 1),
     };
     theCage.rows = {
         "&###################&",
@@ -184,7 +196,54 @@ void RoomSceneManager::defineManualLayouts() {
         " ##########",
     };*/
     g_manualLayouts["The Cage"] = theCage;
+ManualLayout theShed;
+    theShed.legend = {
+        { '#', { dungeonIdx, DUNGEON_WALL_INDEX } },
+        { '&', { dungeonIdx, DUNGEON_WALL_CORNER_INDEX } },
+        { '.', { dungeonIdx, DUNGEON_FLOOR_INDEX } },
+    
+        { ' ', { -1, -1 } },
+    };
+    theShed.decorLegend = {
+        { 'X', { dungeonIdx, DUNGEON_STAIN_A_INDEX } },
+        { 'r', { dungeonIdx, DUNGEON_RIVET_INDEX } },
+        { ' ', { -1, -1 } },
+    };
+    theShed.decorFeatures = {
+    DF(dungeonIdx, DUNGEON_VENT_CONSOLE, 1, 0),
+    DF(dungeonIdx, DUNGEON_BULLETIN_BOARD, 3, 0),
+    DF(dungeonIdx, DUNGEON_HATCH_FRAME, 5, 0),
+    DF(dungeonIdx, DUNGEON_CRATE_RACK_LG, 7, 0),    
+    DF(dungeonIdx, DUNGEON_CRATE_RACK_SM, 10, 0),
+    DF(dungeonIdx, DUNGEON_BENCH, 13, 0),
+    DF(dungeonIdx, DUNGEON_CRACKED_WALL, 15, 0),    
+    DF(dungeonIdx, DUNGEON_RAIL_BLUE_INDEX, 1, 2),
+    DF(dungeonIdx, DUNGEON_RAIL_GREEN_INDEX, 9, 2),
+    DF(dungeonIdx, DUNGEON_RAIL_ORANGE_INDEX, 17, 2),
+    DF(dungeonIdx, DUNGEON_RAIL_CAP_INDEX, 25, 1),
+    DF(dungeonIdx, DUNGEON_FOLIAGE_APPROX, 1, 2),
+    DF(dungeonIdx, DUNGEON_BANNER_APPROX, 5, 2),
+    DF(dungeonIdx, DUNGEON_CELL_DOOR, 9, 2),
 
+    };
+    theShed.rows = {
+        "&###################&",
+        "#..............##",
+        "#..............##",
+        "#..............##",
+        "#..............##",
+        "#..............##",
+        "&###################&",
+    };
+    
+    /*theShed.decorRows = {
+        " TT######TT",
+        " D........#",
+        " #...B.....",
+        " #....S...X",
+        " ##########",
+    };*/
+    g_manualLayouts["The Shed"] = theShed;
 
 }
 

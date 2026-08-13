@@ -133,7 +133,7 @@ bool GameLoop::cmdGo(const std::string& direction) {
 
     Room* nextRoom = player.goDirection(direction);
     if (!nextRoom) {
-        std::cout << "You can't go that way.\n";
+        Notifications::push("You can't go that way.\n");
         return false;
     }
 
@@ -146,12 +146,12 @@ bool GameLoop::cmdGo(const std::string& direction) {
             int roll = rand() % 10;
 
             if (roll >= avoidChance) {
-                std::cout << monster->getName() << " notices you entering the room!\n";
+                Notifications::push(monster->getName() + " notices you entering the room!\n");
                 player.threat(monster, combat);
-                std::cout << "Choose: attack, flee, or magic.\n";
+                Notifications::push("Choose: attack, flee, or magic.\n");
             }
             else {
-                std::cout << "You slip past " << monster->getName() << " unnoticed.\n";
+                Notifications::push("You slip past " + monster->getName() + " unnoticed.\n");
             }
         }
     }
@@ -159,7 +159,7 @@ bool GameLoop::cmdGo(const std::string& direction) {
     return true;
 }
 bool GameLoop::cmdLook()const{
-    std::cout << "you look around and see ";
+    Notifications::push("you look around and see ");
     printSituation();
     return true;
     }
@@ -185,7 +185,7 @@ bool GameLoop::cmdDrop(const std::string& itemName){
         if (toLower(item->getName()) == toLower(itemName)) {
             player.DropItem(item);
             loc->addItem(item);
-            std::cout << "Dropped: '" << item->getName() << "'. If you want it back come back here to pick it up.\n";
+            Notifications::push("Dropped: '" + item->getName() + "'. If you want it back come back here to pick it up.\n");
             Tool* tool = dynamic_cast<Tool*>(item);
             if (tool) {
                 player.unequipItem(tool);
@@ -193,7 +193,7 @@ bool GameLoop::cmdDrop(const std::string& itemName){
             return true;
         }
     }
-    std::cout << "No item called '" << itemName << "' here.\n";
+    Notifications::push("No item called '" + itemName + "' here.\n");
     return false;
 }
 bool GameLoop::cmdUseTool(const std::string& itemName){
@@ -204,22 +204,22 @@ bool GameLoop::cmdUseTool(const std::string& itemName){
             return true;
         }
     }
-    std::cout << "No tool called '" << itemName << "' in your inventory.\n";
+    Notifications::push("No tool called '" + itemName + "' in your inventory.\n");
     return false;
 }
 bool GameLoop::cmdInventory() const {
     const auto& items = player.getItems();
     if (items.empty()) {
-        std::cout << "Your inventory is empty.\n";
+        Notifications::push("Your inventory is empty.\n");
         return true;
     }
     std::cout << "Inventory:\n";
     for (Item* item : items) {
         Tool* t = dynamic_cast<Tool*>(item);
         if (t)
-            std::cout << "  [TOOL] " << item->getName() << "\n";
+            Notifications::push("  [TOOL] " + item->getName() + "\n");
         else
-            std::cout << "  " << item->getName() << "\n";
+            Notifications::push("  " + item->getName() + "\n");
     }
     return true;
 }
@@ -229,15 +229,15 @@ bool GameLoop::cmdEquip(const std::string& itemName){
          if (toLower(item->getName()) == toLower(itemName)) {
             Tool* tool = dynamic_cast<Tool*>(item);
             if (!tool) {
-                std::cout << item->getName() << " is not a tool.\n";
+                Notifications::push(item->getName() + " is not a tool.\n");
                 return false;
             }
             player.equipItem(tool);
-            std::cout << "Equipped " << tool->getName() << ".\n";
+            Notifications::push("Equipped " + tool->getName() + ".\n");
             return true;
         }
     }
-    std::cout << "You don't have '" << itemName << "'.\n";
+    Notifications::push("You don't have '" + itemName + "'.\n");
     return false;
 }
 
@@ -247,12 +247,12 @@ bool GameLoop::cmdUnequip(const std::string& itemName){
            Tool* tool = dynamic_cast<Tool*>(item);
             if (tool) {
                 player.unequipItem(tool);
-                std::cout << "Unequipped '" << tool->getName() << "'.\n";
+                Notifications::push("Unequipped '" + tool->getName() + "'.\n");
                 return true;
             }
         }
     }
-    std::cout << "'" << itemName << "' is not equipped.\n";
+    Notifications::push("'" + itemName + "' is not equipped.\n");
     return false;
 }
 bool GameLoop::cmdAttack(const std::string& targetName) {
@@ -271,15 +271,15 @@ bool GameLoop::cmdAttack(const std::string& targetName) {
             if (target) {
                 player.setInCombat(true);
                 player.setCombatTarget(target);
-                std::cout << "You engage " << target->getName() << " in combat!\n";
+                Notifications::push("You engage " + target->getName() + " in combat!\n");
                 player.attack(target, combat); // first round
             } else {
-                std::cout << "you cant fight '" << targetName << "'\n";
+                Notifications::push("You can't fight '" + targetName + "'\n");
             }
             return true;
         }
     }
-    std::cout << "No monster called '" << targetName << "' here.\n";
+    Notifications::push("No monster called '" + targetName + "' here.\n");
     return false;
 }
 bool GameLoop::cmdFlee() {
@@ -288,14 +288,14 @@ bool GameLoop::cmdFlee() {
 }
 bool GameLoop::cmdTalk(const std::string& npcName) {
     if (!player.getLocation()) {
-        std::cout << "You're nowhere — can't talk to anyone.\n";
+        Notifications::push("You're nowhere — can't talk to anyone.\n");
         return false;
     }
     std::string cleaned = npcName;
     if (cleaned.rfind("to ", 0) == 0) cleaned = cleaned.substr(3);
     NPC* npc = player.getLocation()->getNpcByName(cleaned);
     if (!npc) {
-        std::cout << "There's no one here by that name.\n";
+        Notifications::push("There's no one here by that name.\n");
         return false;
     }
     npc->talk(player, dialogue);
@@ -337,7 +337,7 @@ void GameLoop::scrollDialogueHistory(int delta) {
 }
 bool GameLoop::cmdUseMagic() {
     if (!player.getInCombat()) {
-        std::cout << "There's nothing to cast magic at.\n";
+        Notifications::push("There's nothing to cast magic at.\n");
         return false;
     }
     player.useMagic(combat);
@@ -348,7 +348,7 @@ bool GameLoop::cmdCraft(const std::string& itemName) {
     if (!loc) return false;
 
     if (!loc->getNpcByName("Newt")) {
-        std::cout << "There's no one here to help you craft anything.\n";
+        Notifications::push("There's no one here to help you craft anything.\n");
         return false;
     }
 
@@ -450,7 +450,8 @@ bool GameLoop::checkWorldProgression() {
     if (pl >= 1 && wl == WorldStage::Glade) {
         world.setWorldLevel(WorldStage::CampExpanded);
         world.createWorldLvlTwo();
-        Notifications::push("The world shifts around you — things are changing...");        changed = true;
+        Notifications::push("The world shifts around you — things are changing...");        
+        changed = true;
     }
 
     // Stage 2 -> 3: first trip into the maze with Alby + Minho -> First Griever
