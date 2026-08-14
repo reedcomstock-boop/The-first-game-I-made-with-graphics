@@ -20,12 +20,18 @@ static std::string toLower(std::string s) {
 void GameLoop::runFrame(const std::string& input) {
     if (dialogue.active) {
         handleDialogueChoice(input);
+
+        // Check progression immediately after a dialogue action.
+        // This allows world changes triggered by the conversation
+        // to happen on the very next action instead of one command later.
+        checkWorldProgression();
+
         return;
     }   // swallow input while a conversation is open
     
     if (input.empty()) return;
 
-    Updater::incrementUpdateCount();   // every real command ticks the clock
+    Updater::incrementUpdateCount();
     Updater::convertUpdatesIntoGameClock();
 
     checkWorldProgression();

@@ -271,32 +271,134 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     DrawLine(x, y, x + mW, y, C_BORDER);
     y += (int32_t)(10 * SY());
 
-    // Scene viewport: tile background, animated props, NPCs, Thomas.
-    // Tile art itself stays at its native size (see note near SCENE_HEIGHT above) —
-    // only the surrounding box position/height scale with the window.
-    int32_t sceneH = (int32_t)(SCENE_HEIGHT * SY());
-    Rectangle sceneRect = { (float)x, (float)y, (float)mW, (float)sceneH };
+    // -------------------------------------------------------------------
+    // Universal room coordinate system
+    //
+    // New standard room size:
+    //     23 columns x 11 rows
+    //     16x16 source tiles
+    //
+    // This is the reference size for all new Tiled rooms.
+    //
+    // A standard room (23x11) fills the available room width.
+    // Smaller Tiled rooms intentionally occupy less of that coordinate
+    // space; their tiles and sprites still use the same window-responsive
+    // scale. No room name is special-cased here.
+    //
+    // Manual/legacy rooms retain their existing 250px scene height.
+    // -------------------------------------------------------------------
+    constexpr int STANDARD_ROOM_COLS = 23;
+    constexpr int STANDARD_ROOM_ROWS = 11;
+    constexpr int STANDARD_TILE_SIZE = 16;
 
-    // Always fill the box vertically — never leave black bars top/bottom.
-    // If the resulting width is wider than the panel, we clip it with
-    // scissor mode below rather than shrinking the scale to fit width.
-    float sceneScale = (float)sceneH / (float)(SCENE_ROWS * 16);
+    // The standard room scale is based on the available width. This makes
+    // a 23x11 Tiled room fill the room panel and makes the scale respond
+    // automatically whenever the window is resized.
+    const int roomTileDraw =
+        std::max(1, mW / STANDARD_ROOM_COLS);
+
+    const float roomScale =
+        (float)roomTileDraw / (float)STANDARD_TILE_SIZE;
+
+    // The viewport represents the standard 23x11 coordinate space.
+    // Use the same integer tile size RoomSceneManager uses so there are
+    // no fractional-pixel gaps/black strips.
+    const int32_t drawW =
+        STANDARD_ROOM_COLS * roomTileDraw;
+
+    const int32_t drawH =
+        STANDARD_ROOM_ROWS * roomTileDraw;
+
+    const int32_t drawX =
+        x + (mW - drawW) / 2;
+
+    const int32_t drawY = y;
+
+    // Sprite scale is tied to the window, not to a particular room name.
+    //
+    // 1.10f is the existing visual baseline at the reference window size.
+    // SY() makes Thomas, NPCs, and animated props grow/shrink with the
+    // interface whenever the window changes.
+    constexpr float BASE_SPRITE_SCALE = 1.10f;
+    const float spriteScale = BASE_SPRITE_SCALE * SY();
+
+    Rectangle sceneRect = {
+        (float)drawX,
+        (float)drawY,
+        (float)drawW,
+        (float)drawH
+    };
 
     DrawRectangleRec(sceneRect, BLACK);
-    BeginScissorMode((int32_t)sceneRect.x, (int32_t)sceneRect.y, (int32_t)sceneRect.width, (int32_t)sceneRect.height);
 
-    g_scene.drawFloor(room->getName(), x, y, sceneScale);
-    g_scene.drawDecor(room->getName(), x, y, sceneScale);
-    g_scene.drawDecorFeatures(room->getName(), x, y, sceneScale);  // doors, banners, structures
-    g_scene.drawProps(room->getName(), x, y, mW, sceneH, sceneScale);
-    g_scene.drawNpcs(room->getNpcEntities(), x, y, mW, sceneH, sceneScale);
-    thomas.draw(x + (int32_t)(relX * mW), y + (int32_t)(relY * sceneH), sceneScale/2.0f);
+    BeginScissorMode(
+        (int32_t)sceneRect.x,
+        (int32_t)sceneRect.y,
+        (int32_t)sceneRect.width,
+        (int32_t)sceneRect.height
+    );
+
+    g_scene.drawFloor(
+        room->getName(),
+        drawX,
+        drawY,
+        roomScale
+    );
+
+    g_scene.drawDecor(
+        room->getName(),
+        drawX,
+        drawY,
+        roomScale
+    );
+
+    g_scene.drawDecorFeatures(
+        room->getName(),
+        drawX,
+        drawY,
+        roomScale
+    );
+
+    // Props use the universal sprite scale.
+    g_scene.drawProps(
+        room->getName(),
+        drawX,
+        drawY,
+        drawW,
+        drawH,
+        spriteScale
+    );
+
+    // drawNpcs() internally divides its supplied scale by 2, so pass
+    // double the desired final sprite scale.
+    g_scene.drawNpcs(
+        room->getNpcEntities(),
+        drawX,
+        drawY,
+        drawW,
+        drawH,
+        spriteScale * 2.0f
+    );
+
+    // Thomas uses the same final sprite scale as NPCs and props.
+    thomas.draw(
+        drawX + (int32_t)(relX * drawW),
+        drawY + (int32_t)(relY * drawH),
+        spriteScale
+    );
+
     EndScissorMode();
-    DrawRectangleLinesEx(sceneRect, 1.5f, C_BORDER);
-    y += sceneH + (int32_t)(10 * SY());
 
-    
-    // Description
+    DrawRectangleLinesEx(
+        sceneRect,
+        1.5f,
+        C_BORDER
+    );
+
+    // Continue immediately after the standard 23x11 room viewport.
+    y += drawH + (int32_t)(10 * SY());
+
+// Description
     int descX = x, descY = y, descW = mW;
     y = drawWrapped(room->getDescription(), x, y, mW, FS(), C_TEXT, 3);
     y += (int)(8 * SY());
@@ -313,17 +415,20 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     if (!room->getNpcEntities().empty()) {
         DrawText("Characters", leftX, leftY, FS_SMALL(), C_DIM);
         leftY += LINE_H() - (int)(2 * SY());
+
         for (const auto& npc : room->getNpcEntities()) {
             std::string line = "  * " + npc->getName();
             DrawText(line.c_str(), leftX, leftY, FS(), C_NPC);
             leftY += LINE_H();
         }
+
         leftY += (int)(6 * SY());
     }
 
     if (!room->getItems().empty()) {
         DrawText("Items", leftX, leftY, FS_SMALL(), C_DIM);
         leftY += LINE_H() - (int)(2 * SY());
+
         for (const auto& item : room->getItems()) {
             std::string line = "  + " + item->getName();
             DrawText(line.c_str(), leftX, leftY, FS(), C_ITEM);
@@ -333,6 +438,7 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
 
     DrawText("Exits", rightX, rightY, FS_SMALL(), C_DIM);
     rightY += LINE_H() - (int)(2 * SY());
+
     for (const auto& e : room->getExits()) {
         std::string line = "  " + e.first + " -> " + e.second->getName();
         DrawText(line.c_str(), rightX, rightY, FS(), C_EXIT);
@@ -340,26 +446,51 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
     }
 
     int divX = x + colW + (int)(8 * SX());
-    DrawLine(divX, y, divX, (int)roomPanel.y + (int)roomPanel.height - (int)PAD(), C_BORDER);
+    DrawLine(
+        divX,
+        y,
+        divX,
+        (int)roomPanel.y + (int)roomPanel.height - (int)PAD(),
+        C_BORDER
+    );
 
     // Notification overlay — floats on top of the description area instead
     // of pushing the NPC/item/exit lists down. Drawn last so it layers
     // above everything beneath it.
     const auto& notes = Notifications::getAll();
+
     if (!notes.empty()) {
-        Rectangle noteBox = { (float)descX - 4 * SX(), (float)descY - 4 * SY(),
-                               (float)descW + 8 * SX(),
-                               LINE_H() * (float)notes.size() + 12 * SY() };
-        Color overlayBg = { C_INPUT_BG.r, C_INPUT_BG.g, C_INPUT_BG.b, 235 };
+        Rectangle noteBox = {
+            (float)descX - 4 * SX(),
+            (float)descY - 4 * SY(),
+            (float)descW + 8 * SX(),
+            LINE_H() * (float)notes.size() + 12 * SY()
+        };
+
+        Color overlayBg = {
+            C_INPUT_BG.r,
+            C_INPUT_BG.g,
+            C_INPUT_BG.b,
+            235
+        };
+
         DrawRectangleRec(noteBox, overlayBg);
         DrawRectangleLinesEx(noteBox, 1.5f, C_ACCENT);
+
         int ny = (int)noteBox.y + (int)(6 * SY());
+
         for (const auto& n : notes) {
-            DrawText(n.text.c_str(), descX + (int)(8 * SX()), ny, FS(), C_ACCENT);
+            DrawText(
+                n.text.c_str(),
+                descX + (int)(8 * SX()),
+                ny,
+                FS(),
+                C_ACCENT
+            );
+
             ny += LINE_H();
         }
     }
-
 }
 
 // -----------------------------------------------------------------------
