@@ -40,6 +40,9 @@ static const int DUNGEON_TILE_INDEX = 0;   // Dungeon_Tiles.png row 0, col 0  �
 static std::vector<int> g_tiledGround;
 static std::vector<int> g_tiledWalls;
 static std::vector<int> g_tiledWater;
+static std::vector<int> g_tiledCollision;  
+static std::vector<TiledDoor> g_tiledDoors;
+
 static int g_tiledWidth = 0;
 static int g_tiledHeight = 0;
 static bool g_tiledCampGroundLoaded = false;
@@ -264,7 +267,43 @@ ManualLayout theShed;
     g_manualLayouts["The Shed"] = theShed;
 
 }
+bool RoomSceneManager::isTileBlocked(const std::string& roomName,
+                                      float relX, float relY) const {
+    // Tiled-driven rooms check the real collision layer.
+    if (roomName == "The Camp Ground" &&
+        g_tiledCampGroundLoaded &&
+        g_tiledWidth > 0 && g_tiledHeight > 0)
+    {
+        int tileCol = (int)(relX * g_tiledWidth);
+        int tileRow = (int)(relY * g_tiledHeight);
 
+        if (tileCol < 0 || tileCol >= g_tiledWidth)  return true;
+        if (tileRow < 0 || tileRow >= g_tiledHeight) return true;
+
+        int index = tileRow * g_tiledWidth + tileCol;
+        if (index < 0 || index >= (int)g_tiledCollision.size()) return false;
+
+        return g_tiledCollision[index] != 0;   // any non-zero GID = blocked
+    }
+
+    // Everything else keeps using the existing ASCII manual layouts.
+    auto it = g_manualLayouts.find(roomName);
+    if (it == g_manualLayouts.end()) return false;
+
+    const std::vector<std::string>& rows = it->second.rows;
+    if (rows.empty()) return false;
+
+    int numRows = (int)rows.size();
+    int numCols = (int)rows[0].size();
+    int tileCol = (int)(relX * numCols);
+    int tileRow = (int)(relY * numRows);
+
+    if (tileCol < 0 || tileCol >= numCols) return true;
+    if (tileRow < 0 || tileRow >= numRows) return true;
+
+    char cell = rows[tileRow][tileCol];
+    return cell == '#' || cell == '&';
+}
 void RoomSceneManager::loadTilesets(const std::string& assetDir) {
     registerTileset("floors",  assetDir + "/tiles/Floors_Tiles.png");
     registerTileset("walls",   assetDir + "/tiles/Wall_Tiles.png");
@@ -371,18 +410,8 @@ void RoomSceneManager::loadMonsterSprites(const std::string& assetDir) {
 // existing TileSet class.
 // ---------------------------------------------------------------------
 
-static bool loadTmxLayerCSV(
-    const std::string& tmx,
-    const std::string& layerName,
-    int expectedWidth,
-    int expectedHeight,
-    std::vector<int>& out)
-{
-    std::regex layerRegex(
-        "<layer[^>]*name=\"" + layerName +
-        "\"[^>]*>[\\s\\S]*?<data[^>]*encoding=\"csv\"[^>]*>([\\s\\S]*?)</data>",
-        std::regex_constants::icase
-    );
+static bool loadTmxLayerCSV(const std::string& tmx,const std::string& layerName,int expectedWidth,int expectedHeight,std::vector<int>& out){
+    std::regex layerRegex("<layer[^>]*name=\"" + layerName +"\"[^>]*>[\\s\\S]*?<data[^>]*encoding=\"csv\"[^>]*>([\\s\\S]*?)</data>",std::regex_constants::icase);
 
     std::smatch match;
 
@@ -397,17 +426,7 @@ static bool loadTmxLayerCSV(
     out.clear();
 
     while (std::getline(ss, value, ',')) {
-        value.erase(
-            std::remove_if(
-                value.begin(),
-                value.end(),
-                [](unsigned char c) {
-                    return std::isspace(c);
-                }
-            ),
-            value.end()
-        );
-
+        value.erase(std::remove_if(value.begin(),value.end(),[](unsigned char c) {return std::isspace(c);}),value.end());
         if (!value.empty()) {
             out.push_back(std::stoi(value));
         }
@@ -435,12 +454,7 @@ static bool loadTmxLayerCSV(
 // Tiled's high bits are reserved for horizontal/vertical/diagonal flips.
 // We do not currently use flipped tiles, but mask those bits so a flipped
 // tile will not turn into an invalid tile index.
-static TileRef tiledGidToTileRef(
-    int gid,
-    int floorsIdx,
-    int dungeonIdx,
-    int wallsIdx)
-{
+static TileRef tiledGidToTileRef(int gid,int floorsIdx,int dungeonIdx,int wallsIdx){
     // Empty cell.
     if (gid <= 0) {
         return {-1, -1};
@@ -465,21 +479,68 @@ static TileRef tiledGidToTileRef(
     return {-1, -1};
 }
 
-
-static bool loadTiledCampGround(
-    const std::string& path,
-    RoomScene& scene,
-    int floorsIdx,
-    int dungeonIdx,
-    int wallsIdx)
+// Parses <objectgroup name="doors"> ... <object .../> ... </objectgroup>.
+// Assumes Tiled's standard attribute order (id, name, x, y, width, height) —
+// this is not a general TMX parser, just enough for this project's export.
+static void loadTmxDoors(const std::string& tmx, int mapWidthPx, int mapHeightPx,std::vector<TiledDoor>& out)
 {
+    out.clear();
+
+    std::regex groupRegex(
+        "<objectgroup[^>]*name=\"doors\"[^>]*>([\\s\\S]*?)</objectgroup>",
+        std::regex_constants::icase);
+    std::smatch groupMatch;
+    if (!std::regex_search(tmx, groupMatch, groupRegex)) return;
+    std::string block = groupMatch[1].str();
+
+    // Custom delimiter "RX" is required here — the regex itself contains a
+    // literal `)"` sequence (in `([^"]*)"`), which is identical to a plain
+    // R"( ... )" delimiter's closing tag. With no custom tag, the raw string
+    // terminates right there instead of at the real end, and everything
+    // after gets parsed as broken C++ ("stray '\' in program" errors).
+    std::regex objRegex(
+        R"RX(<object\s+id="\d+"\s+name="([^"]*)"\s+x="([-\d.]+)"\s+y="([-\d.]+)"\s+width="([-\d.]+)"\s+height="([-\d.]+)"\s*>([\s\S]*?)</object>)RX");
+
+    for (std::sregex_iterator it(block.begin(), block.end(), objRegex), end; it != end; ++it) {
+        std::smatch m = *it;
+        TiledDoor d;
+        d.name = m[1].str();
+        float x = std::stof(m[2].str());
+        float y = std::stof(m[3].str());
+        float w = std::stof(m[4].str());
+        float h = std::stof(m[5].str());
+        std::string props = m[6].str();
+
+        d.x0 = x / (float)mapWidthPx;
+        d.y0 = y / (float)mapHeightPx;
+        d.x1 = (x + w) / (float)mapWidthPx;
+        d.y1 = (y + h) / (float)mapHeightPx;
+
+        std::smatch pm;
+        // Same raw-string delimiter collision as objRegex above — these all
+        // contain a `)"` inside the pattern itself (end of a capture group
+        // right before a literal quote), so a plain R"( ... )" truncates
+        // early and even swallows the group's closing paren. Custom "RX"
+        // delimiter avoids the collision entirely.
+        std::regex targetRegex(R"RX(name="targetName"\s+value="([^"]*)")RX");
+        if (std::regex_search(props, pm, targetRegex)) d.targetRoom = pm[1].str();
+
+        std::regex spawnXRegex(R"RX(name="spawnx"[^>]*value="([-\d.]+)")RX");
+        if (std::regex_search(props, pm, spawnXRegex)) d.spawnX = std::stof(pm[1].str());
+        else d.spawnX = 0.5f;
+
+        std::regex spawnYRegex(R"RX(name="spawny"[^>]*value="([-\d.]+)")RX");
+        if (std::regex_search(props, pm, spawnYRegex)) d.spawnY = std::stof(pm[1].str());
+        else d.spawnY = 0.9f;
+
+        out.push_back(d);
+    }
+}
+static bool loadTiledCampGround(const std::string& path,RoomScene& scene,int floorsIdx,int dungeonIdx,int wallsIdx){
     std::ifstream file(path);
 
     if (!file.is_open()) {
-        std::cerr
-            << "[Tiled] Could not open map: "
-            << path << "\n";
-
+        std::cerr<< "[Tiled] Could not open map: "<< path << "\n";
         return false;
     }
 
@@ -489,10 +550,7 @@ static bool loadTiledCampGround(
 
     // Read the map dimensions directly from the TMX file.  This means you
     // can resize the map in Tiled without changing C++ code.
-    std::regex mapRegex(
-        R"TMX(<map\b[^>]*\bwidth="([0-9]+)"[^>]*\bheight="([0-9]+)")TMX",
-        std::regex_constants::icase
-    );
+    std::regex mapRegex(R"TMX(<map\b[^>]*\bwidth="([0-9]+)"[^>]*\bheight="([0-9]+)")TMX",std::regex_constants::icase);
 
     std::smatch mapMatch;
     if (!std::regex_search(tmx, mapMatch, mapRegex)) {
@@ -504,8 +562,7 @@ static bool loadTiledCampGround(
     const int height = std::stoi(mapMatch[2].str());
 
     if (width <= 0 || height <= 0) {
-        std::cerr << "[Tiled] Invalid map dimensions: "
-                  << width << "x" << height << "\n";
+        std::cerr << "[Tiled] Invalid map dimensions: " << width << "x" << height << "\n";
         return false;
     }
 
@@ -513,50 +570,31 @@ static bool loadTiledCampGround(
     std::vector<int> walls;
     std::vector<int> water;
     std::vector<int> decor;
+    std::vector<int> collision;
 
-    if (!loadTmxLayerCSV(
-            tmx, "ground", width, height, ground))
-    {
-        std::cerr
-            << "[Tiled] Could not read ground layer.\n";
-
+    if (!loadTmxLayerCSV(tmx, "ground", width, height, ground)){
+        std::cerr<< "[Tiled] Could not read ground layer.\n";
         return false;
     }
 
-    if (!loadTmxLayerCSV(
-            tmx, "walls", width, height, walls))
-    {
-        std::cerr
-            << "[Tiled] Could not read walls layer.\n";
+    if (!loadTmxLayerCSV(tmx, "walls", width, height, walls)){
+        std::cerr << "[Tiled] Could not read walls layer.\n";
 
         return false;
     }
 
     // These layers are optional for this first test.
-    loadTmxLayerCSV(
-        tmx, "water", width, height, water);
+    loadTmxLayerCSV(tmx, "water", width, height, water);
 
-    loadTmxLayerCSV(
-        tmx, "decor", width, height, decor);
+    loadTmxLayerCSV(tmx, "decor", width, height, decor);
 
+    loadTmxLayerCSV(tmx, "collision", width, height, collision); 
     // RoomScene's existing renderer expects the floor array to contain the
     // visible base tile for every cell.  For this first integration pass,
     // we flatten the visible Tiled ground/walls/water layers into that array.
-    scene.floor.assign(
-        height,
-        std::vector<TileRef>(
-            width,
-            {-1, -1}
-        )
-    );
+    scene.floor.assign(height,std::vector<TileRef>(width,{-1, -1}));
 
-    scene.decor.assign(
-        height,
-        std::vector<TileRef>(
-            width,
-            {-1, -1}
-        )
-    );
+    scene.decor.assign(height,std::vector<TileRef>(width,{-1, -1}));
 
     // -------------------------------------------------------------
     // Preserve Tiled's layers separately.
@@ -573,53 +611,43 @@ static bool loadTiledCampGround(
     g_tiledWater  = water;
     g_tiledWidth  = width;
     g_tiledHeight = height;
+    g_tiledCollision = collision;
     g_tiledCampGroundLoaded = true;
 
     // Keep these arrays populated for compatibility with the existing
     // RoomScene structure. The Camp Ground's drawFloor() below performs
     // the actual layered rendering.
-    scene.floor.assign(
-        height,
-        std::vector<TileRef>(width, {-1, -1})
-    );
-
-    scene.decor.assign(
-        height,
-        std::vector<TileRef>(width, {-1, -1})
-    );
+    scene.floor.assign(height,std::vector<TileRef>(width, {-1, -1}));
+    scene.decor.assign(height,std::vector<TileRef>(width, {-1, -1}));
 
     for (int row = 0; row < height; ++row) {
         for (int col = 0; col < width; ++col) {
             const int index = row * width + col;
 
-            scene.floor[row][col] =
-                tiledGidToTileRef(
-                    ground[index],
-                    floorsIdx,
-                    dungeonIdx,
-                    wallsIdx
-                );
+            scene.floor[row][col] =tiledGidToTileRef(ground[index],floorsIdx,dungeonIdx,wallsIdx);
 
             if (decor[index] != 0) {
-                scene.decor[row][col] =
-                    tiledGidToTileRef(
-                        decor[index],
-                        floorsIdx,
-                        dungeonIdx,
-                        wallsIdx
-                    );
+                scene.decor[row][col] = tiledGidToTileRef(decor[index],floorsIdx,dungeonIdx,wallsIdx);
             }
         }
     }
+    loadTmxDoors(tmx, width * 16, height * 16, g_tiledDoors);
 
-    std::cout
-        << "[Tiled] Loaded "
-        << path
-        << " (" << width << "x" << height << ")\n";
+    std::cout << "[Tiled] Loaded " << path << " (" << width << "x" << height << ")\n";
 
     return true;
 }
-
+bool RoomSceneManager::getDoorAt(const std::string& roomName, float relX, float relY,
+                                   TiledDoor& outDoor) const {
+    if (roomName != "The Camp Ground") return false; // only Tiled rooms have doors right now
+    for (const TiledDoor& d : g_tiledDoors) {
+        if (relX >= d.x0 && relX <= d.x1 && relY >= d.y0 && relY <= d.y1) {
+            outDoor = d;
+            return true;
+        }
+    }
+    return false;
+}
 
 void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
     int floorsIdx  = tilesetIndex.count("floors")  ? tilesetIndex["floors"]  : -1;
@@ -642,26 +670,13 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
             const std::string tiledPath =
                 "assets/maps/The_Camp_ground.tmx";
 
-            if (loadTiledCampGround(
-                    tiledPath,
-                    tiledScene,
-                    floorsIdx,
-                    dungeonIdx,
-                    wallsIdx))
-            {
+            if (loadTiledCampGround(tiledPath,tiledScene,floorsIdx,dungeonIdx,wallsIdx)){
                 rooms[name] = tiledScene;
-
-                std::cout
-                    << "[Tiled] Using Tiled map for "
-                    << name << "\n";
-
+                std::cout<< "[Tiled] Using Tiled map for "<< name << "\n";
                 continue;
             }
 
-            std::cerr
-                << "[Tiled] Failed to load "
-                << tiledPath
-                << ". Falling back to C++ layout.\n";
+            std::cerr<< "[Tiled] Failed to load "<< tiledPath<< ". Falling back to C++ layout.\n";
         }
 
         // -------------------------------------------------------------
@@ -674,76 +689,29 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
             RoomScene scene;
 
             int layoutRows = (int)layout.rows.size();
-            int layoutCols =
-                layoutRows > 0
-                    ? (int)layout.rows[0].size()
-                    : 0;
+            int layoutCols = layoutRows > 0 ? (int)layout.rows[0].size() : 0;
 
-            scene.floor.assign(
-                layoutRows,
-                std::vector<TileRef>(
-                    layoutCols,
-                    {-1, -1}
-                )
-            );
+            scene.floor.assign(layoutRows,std::vector<TileRef>(layoutCols,{-1, -1}));
 
             for (int rr = 0; rr < layoutRows; rr++) {
-                for (
-                    int cc = 0;
-                    cc < layoutCols &&
-                    cc < (int)layout.rows[rr].size();
-                    cc++
-                ) {
+                for (int cc = 0;cc < layoutCols &&cc < (int)layout.rows[rr].size();cc++) {
                     char ch = layout.rows[rr][cc];
+                    auto legendIt =layout.legend.find(ch);
 
-                    auto legendIt =
-                        layout.legend.find(ch);
-
-                    scene.floor[rr][cc] =
-                        (legendIt != layout.legend.end())
-                            ? legendIt->second
-                            : TileRef{-1, -1};
+                    scene.floor[rr][cc] =(legendIt != layout.legend.end()) ? legendIt->second: TileRef{-1, -1};
                 }
             }
+            scene.decor.assign(layoutRows,std::vector<TileRef>(layoutCols,{-1, -1}));
 
-            scene.decor.assign(
-                layoutRows,
-                std::vector<TileRef>(
-                    layoutCols,
-                    {-1, -1}
-                )
-            );
-
-            for (
-                int rr = 0;
-                rr < layoutRows &&
-                rr < (int)layout.decorRows.size();
-                rr++
-            ) {
-                for (
-                    int cc = 0;
-                    cc < layoutCols &&
-                    cc < (int)layout.decorRows[rr].size();
-                    cc++
-                ) {
-                    char ch =
-                        layout.decorRows[rr][cc];
-
-                    auto it =
-                        layout.decorLegend.find(ch);
-
-                    scene.decor[rr][cc] =
-                        (it != layout.decorLegend.end())
-                            ? it->second
-                            : TileRef{-1, -1};
+            for (int rr = 0;rr < layoutRows &&rr < (int)layout.decorRows.size();rr++) {
+                for (int cc = 0;cc < layoutCols &&cc < (int)layout.decorRows[rr].size();cc++) {
+                    char ch =layout.decorRows[rr][cc];
+                    auto it =layout.decorLegend.find(ch);
+                    scene.decor[rr][cc] = (it != layout.decorLegend.end()) ? it->second: TileRef{-1, -1};
                 }
             }
-
-            scene.decorFeatures =
-                layout.decorFeatures;
-
+            scene.decorFeatures = layout.decorFeatures;
             rooms[name] = scene;
-
             continue;
         }
 
@@ -760,10 +728,7 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
             useFloorSet  = waterIdx;
             useFloorTile = WATER_TILE_INDEX;
         }
-        else if (
-            name == "The Maze" ||
-            name.rfind("Maze", 0) == 0
-        ) {
+        else if (name == "The Maze" || name.rfind("Maze", 0) == 0) {
             useFloorSet  = dungeonIdx;
             useFloorTile = DUNGEON_TILE_INDEX;
 
@@ -773,28 +738,18 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
 
         RoomScene scene;
 
-        scene.floor.assign(
-            rows,
-            std::vector<TileRef>(
-                cols,
-                {useFloorSet, useFloorTile}
-            )
-        );
+        scene.floor.assign(rows,std::vector<TileRef>(cols,{useFloorSet, useFloorTile}));
 
         for (int c = 0; c < cols; c++) {
-            scene.floor[0][c] =
-                {useWallSet, useWallTile};
+            scene.floor[0][c] = {useWallSet, useWallTile};
 
-            scene.floor[rows - 1][c] =
-                {useWallSet, useWallTile};
+            scene.floor[rows - 1][c] = {useWallSet, useWallTile};
         }
 
         for (int rr = 0; rr < rows; rr++) {
-            scene.floor[rr][0] =
-                {useWallSet, useWallTile};
+            scene.floor[rr][0] = {useWallSet, useWallTile}; 
 
-            scene.floor[rr][cols - 1] =
-                {useWallSet, useWallTile};
+            scene.floor[rr][cols - 1] ={useWallSet, useWallTile};
         }
 
         rooms[name] = scene;
@@ -802,17 +757,11 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
 
     // Existing animated props.
     if (rooms.count("The Camp Ground")) {
-        rooms["The Camp Ground"]
-            .props.push_back(
-                {"bonfire", 0.5f, 0.6f}
-            );
+        rooms["The Camp Ground"].props.push_back({"bonfire", 0.5f, 0.6f});
     }
 
     if (rooms.count("The Shed")) {
-        rooms["The Shed"]
-            .props.push_back(
-                {"forge_iron", 0.5f, 0.55f}
-            );
+        rooms["The Shed"].props.push_back({"forge_iron", 0.5f, 0.55f});
     }
 }
 
@@ -857,9 +806,7 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
             tilesetIndex.count("walls")
                 ? tilesetIndex.at("walls") : -1;
 
-        auto drawTiledLayer =
-            [&](const std::vector<int>& layer)
-        {
+        auto drawTiledLayer = [&](const std::vector<int>& layer){
             if ((int)layer.size() != g_tiledWidth * g_tiledHeight) {
                 return;
             }
@@ -871,17 +818,9 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
 
                     if (gid == 0) continue;
 
-                    const TileRef t =
-                        tiledGidToTileRef(
-                            gid,
-                            floorsIdx,
-                            dungeonIdx,
-                            wallsIdx
-                        );
+                    const TileRef t = tiledGidToTileRef( gid, floorsIdx, dungeonIdx,wallsIdx);
 
-                    if (t.tilesetId < 0 ||
-                        t.tilesetId >= (int)tilesets.size() ||
-                        t.tileIndex < 0) {
+                    if (t.tilesetId < 0 || t.tilesetId >= (int)tilesets.size() || t.tileIndex < 0) {
                         continue;
                     }
 
@@ -889,20 +828,10 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
                     const int y = originY + row * tileDraw;
 
                     if (tilesets[t.tilesetId].isLoaded()) {
-                        tilesets[t.tilesetId].drawTile(
-                            t.tileIndex,
-                            x,
-                            y,
-                            scale
-                        );
-                    } else {
-                        DrawRectangle(
-                            x,
-                            y,
-                            tileDraw,
-                            tileDraw,
-                            TILESET_COLORS[t.tilesetId]
-                        );
+                        tilesets[t.tilesetId].drawTile(t.tileIndex,x,y,scale);
+                    } 
+                    else {
+                        DrawRectangle(x,y,tileDraw,tileDraw,TILESET_COLORS[t.tilesetId]);
                     }
                 }
             }
@@ -913,6 +842,7 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
         drawTiledLayer(g_tiledGround);
         drawTiledLayer(g_tiledWater);
         drawTiledLayer(g_tiledWalls);
+
         return;
     }
 
@@ -924,26 +854,15 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
     for (size_t r = 0; r < scene.floor.size(); r++) {
         for (size_t c = 0; c < scene.floor[r].size(); c++) {
             const TileRef& t = scene.floor[r][c];
-            if (t.tilesetId < 0 ||
-                t.tilesetId >= (int)tilesets.size()) {
+            if (t.tilesetId < 0 || t.tilesetId >= (int)tilesets.size()) {
                 continue;
             }
 
             if (tilesets[t.tilesetId].isLoaded()) {
-                tilesets[t.tilesetId].drawTile(
-                    t.tileIndex,
-                    originX + (int)c * tileDraw,
-                    originY + (int)r * tileDraw,
-                    scale
-                );
-            } else {
-                DrawRectangle(
-                    originX + (int)c * tileDraw,
-                    originY + (int)r * tileDraw,
-                    tileDraw,
-                    tileDraw,
-                    TILESET_COLORS[t.tilesetId]
-                );
+                tilesets[t.tilesetId].drawTile(t.tileIndex,originX + (int)c * tileDraw,originY + (int)r * tileDraw,scale);
+            } 
+            else {
+                DrawRectangle(originX + (int)c * tileDraw,originY + (int)r * tileDraw,tileDraw,tileDraw,TILESET_COLORS[t.tilesetId]);
             }
         }
     }
@@ -990,8 +909,9 @@ void RoomSceneManager::drawProps(const std::string& roomName, int originX, int o
             propScale *= 1.5f;
         }
 
-        animIt->second.draw(x, y, propScale);    }
-        }
+        animIt->second.draw(x, y, propScale);    
+    }
+}
 
 void RoomSceneManager::drawNpcs(const std::vector<NPC*>& npcsInRoom, int originX, int originY,
                                  int viewportW, int viewportH, float scale) const {

@@ -685,6 +685,13 @@ static void drawPortrait(const World& world, const Player& player) {
     DrawText(roomLabel.c_str(), (int32_t)panel.x + (int32_t)(8 * SX()), (int32_t)(panel.y + panel.height - 20 * SY()), (int32_t)(12 * SY()), C_DIM);
 }
 
+bool isSceneTileBlocked(const std::string& roomName, float relX, float relY) {
+    return g_scene.isTileBlocked(roomName, relX, relY);
+}
+// graphics.cpp
+bool getSceneDoorAt(const std::string& roomName, float relX, float relY, TiledDoor& outDoor) {
+    return g_scene.getDoorAt(roomName, relX, relY, outDoor);
+}
 // -----------------------------------------------------------------------
 // drawGame — entry point called every frame from main.cpp
 // -----------------------------------------------------------------------
