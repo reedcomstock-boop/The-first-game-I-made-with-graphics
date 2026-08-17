@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="23" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="5">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="23" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="11">
  <tileset firstgid="1" source="../../../../../../Floors_Tiles.tsx"/>
  <tileset firstgid="651" source="../../../../../../Dungeon_Tiles.tsx"/>
  <tileset firstgid="1276" source="../../../../../../Wall_Tiles.tsx"/>
@@ -84,18 +84,25 @@
    <property name="spawnx" type="float" value="0"/>
    <property name="spawny" type="float" value="0"/>
   </properties>
-  <object id="2" name="hut1" x="63.9587" y="95.377" width="30.8573" height="48.2496">
+  <object id="2" name="Hut1" x="63.9587" y="95.377" width="30.8573" height="48.2496">
    <properties>
-    <property name="spawnx" type="float" value="0"/>
-    <property name="spawny" type="float" value="0"/>
-    <property name="targetName" value="hut1"/>
+    <property name="spawnx" type="float" value="0.5"/>
+    <property name="spawny" type="float" value="0.65"/>
+    <property name="targetName" value="Hut1"/>
    </properties>
   </object>
-  <object id="3" name="hut2" x="223.855" y="112.208" width="31.4183" height="46.5664">
+  <object id="3" name="Hut2" x="223.855" y="112.208" width="31.4183" height="46.5664">
    <properties>
-    <property name="spawnx" type="float" value="0"/>
-    <property name="spawny" type="float" value="0"/>
-    <property name="targetName" value="hut2"/>
+    <property name="spawnx" type="float" value="0.5"/>
+    <property name="spawny" type="float" value="0.65"/>
+    <property name="targetName" value="Hut2"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup id="8" name="props">
+  <object id="9" x="144.228" y="32.2444" width="37.9089" height="36.166">
+   <properties>
+    <property name="Name" value="bonfire"/>
    </properties>
   </object>
  </objectgroup>
