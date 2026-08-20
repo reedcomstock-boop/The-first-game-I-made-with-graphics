@@ -1,0 +1,6 @@
+*.o
+Game
+Game.exe
+*.dll
+.DS_Store
+*.zip
