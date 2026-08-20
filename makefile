@@ -1,17 +1,9 @@
 CXX = g++
-CFLAGS = -Wall -Wextra -pedantic -Werror -std=gnu++17 -I/ucrt64/include
-LDFLAGS = -L/ucrt64/lib -lraylib -lopengl32 -lgdi32 -lwinmm -static-libgcc -static-libstdc++
-CXXFLAGS += -I.
-CXXFLAGS += -Isrc
-TARGET = Game.exe
+CFLAGS = -Wall -Wextra -pedantic -Werror -std=c++17 -I/opt/homebrew/include
+LDFLAGS = -L/opt/homebrew/lib -lraylib
 
-OBJS = main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o save.o tileset.o strip_animator.o roomscene.o sprite.o
-
-.PHONY: all clean
-
-all: $(TARGET)
-$(TARGET): $(OBJS)
-	$(CXX) -o $(TARGET) $(OBJS) $(LDFLAGS)
+Game: main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o
+	$(CXX) -o Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o $(LDFLAGS)
 
 main.o: main.cpp
 	$(CXX) -c main.cpp $(CFLAGS)
@@ -25,13 +17,13 @@ items.o: items.cpp
 	$(CXX) -c items.cpp $(CFLAGS)
 world.o: world.cpp world.h
 	$(CXX) -c world.cpp $(CFLAGS)
-updater.o: updater.cpp updater.h
+updater.o: updater.cpp
 	$(CXX) -c updater.cpp $(CFLAGS)
-GameLoop.o: GameLoop.cpp GameLoop.h
+GameLoop.o: GameLoop.cpp
 	$(CXX) -c GameLoop.cpp $(CFLAGS)
 graphics.o: graphics.cpp graphics.h
 	$(CXX) -c graphics.cpp $(CFLAGS)
-sprite.o: sprite.cpp sprite.h
+sprite.o: sprite.cpp
 	$(CXX) -c sprite.cpp $(CFLAGS)
 tileset.o: tileset.cpp tileset.h
 	$(CXX) -c tileset.cpp $(CFLAGS)
@@ -41,6 +33,7 @@ roomscene.o: roomscene.cpp roomscene.h
 	$(CXX) -c roomscene.cpp $(CFLAGS)
 save.o: save.cpp save.h
 	$(CXX) -c save.cpp $(CFLAGS)
-
+Notifications.o: Notifications.cpp Notifications.h
+	$(CXX) -c Notifications.cpp $(CFLAGS)
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o

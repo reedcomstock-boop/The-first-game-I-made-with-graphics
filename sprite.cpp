@@ -101,13 +101,12 @@ void SpriteAnimator::draw(int x, int y, float scale) const {
     }
 
     if (tex.id == 0) return;
-float displayScale = scale * ((float)WALK_FRAME_SIZE / (float)size); // keeps attack visually same size as walk
 
     Rectangle dst = {
-        (float)(x - (int)(size * displayScale * 0.5f)),
-        (float)(y - (int)(size * displayScale * 0.5f)),
-        size * displayScale,
-        size * displayScale
+        (float)(x - (int)(size * scale * 0.5f)),
+        (float)(y - (int)(size * scale * 0.5f)),
+        size * scale,
+        size * scale
     };
     DrawTexturePro(tex, src, dst, {0, 0}, 0.0f, WHITE);
 }

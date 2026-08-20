@@ -1,4 +1,5 @@
 #include "player.h"
+#include "Notifications.h"
 #include "stats.h"
 #include "Entity.h"
 #include <algorithm>
@@ -121,12 +122,12 @@ void Player::setDiologueProgress(int32_t progress) {
     }
 void Player::setExp(double amt) {
     exp += amt;
-    std::cout << "\nYou gained " << amt << " experience points!\n";
+    Notifications::push("You gained " + std::to_string((int)amt) + " experience points!");
     while (exp >= experienceToLevelUp) {
         exp -= experienceToLevelUp;
         experienceToLevelUp *= 1.5;
         level++;
-        std::cout << "\nYou leveled up! You are now level " << level << ".\n";
+        Notifications::push("You leveled up! You are now level " + std::to_string(level) + ".");
     }
 }
 

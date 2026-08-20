@@ -5,10 +5,12 @@
 #include "sprite.h"
 #include "player.h"
 #include "Entity.h"   // for DialogueState
+#include "roomscene.h" // for TiledDoor, used in getSceneDoorAt()'s signature below
 
 void drawGame(const World& world, const Player& player, const std::string& inputBuffer,
               SpriteAnimator& animator, const DialogueState& dialogue,
               float playerRelX, float playerRelY);
 void unloadSceneAssets(); // call once before CloseWindow() to free tile/NPC/prop textures
-
+bool isSceneTileBlocked(const std::string& roomName, float relX, float relY);
+bool getSceneDoorAt(const std::string& roomName, float relX, float relY, TiledDoor& outDoor);
 #endif // GRAPHICS_H

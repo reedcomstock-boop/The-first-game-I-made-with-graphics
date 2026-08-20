@@ -15,6 +15,12 @@ struct TileRef {
     int tilesetId;
     int tileIndex;
 };
+struct TiledDoor {
+    std::string name;
+    float x0, y0, x1, y1;      // 0..1 viewport-fraction rect
+    std::string targetRoom;
+    float spawnX, spawnY;      // 0..1 fraction in the DESTINATION room
+};
 // A decoration that spans multiple cells in the sheet (a door, a banner, a
 // structure) — placed at a specific grid position in the room, but drawn as
 // one multi-cell region rather than tiled cell-by-cell.
@@ -51,10 +57,8 @@ public:
     void loadNpcSprites(const std::string& assetDir);
     void loadProps(const std::string& assetDir);
     void loadMonsterSprites(const std::string& assetDir);
-
-
     void loadNpcPortraits(const std::string& assetDir);
-    Texture2D getPortrait(const std::string& name) const;  // returns {0} (id=0) if this NPC has non
+    Texture2D getPortrait(const std::string& name) const;  // id==0 if this NPC has none
 
     // Builds a default floor+wall layout (with a couple of themed
     // overrides — water for The Lake, dungeon tiles for maze rooms) for
@@ -68,7 +72,6 @@ public:
     // happens if this only runs in the destructor, since g_scene is static
     // and destructs after main() returns) will crash.
     void unloadAll();
-
     void drawFloor(const std::string& roomName, int originX, int originY, float scale) const;
     void drawDecor(const std::string& roomName, int originX, int originY, float scale) const;
     void drawDecorFeatures(const std::string& roomName, int originX, int originY, float scale) const;
@@ -76,14 +79,22 @@ public:
                     int viewportW, int viewportH, float scale) const;
     void drawNpcs(const std::vector<NPC*>& npcsInRoom, int originX, int originY,
                    int viewportW, int viewportH, float scale) const;
-
+    // Returns true if the position (relX, relY) in 0..1 viewport fractions
+    // lands on a wall tile in the named room's manual layout.
+    // Always returns false for rooms without a manual layout (safe fallback).
+    bool isTileBlocked(const std::string& roomName, float relX, float relY) const;
+    // Returns true and fills outDoor if (relX, relY) lands inside a door
+    // rect in the named room's Tiled map. False (untouched outDoor) for
+    // rooms with no Tiled doors.
+    bool getDoorAt(const std::string& roomName, float relX, float relY, TiledDoor& outDoor) const;
 private:
     std::vector<TileSet> tilesets;
     std::unordered_map<std::string, int> tilesetIndex; // name -> index into tilesets
-    std::unordered_map<std::string, Texture2D> npcPortraits;
+
     std::unordered_map<std::string, RoomScene> rooms; // room name -> layout
     std::unordered_map<std::string, StripAnimator> npcAnimators;  // npc name -> animator
     std::unordered_map<std::string, StripAnimator> propAnimators; // clip name -> animator
+    std::unordered_map<std::string, Texture2D> npcPortraits;      // npc name -> face portrait
 
     int registerTileset(const std::string& name, const std::string& path);
 };

@@ -43,6 +43,12 @@ void World::createWorld() {
         "To the south, you see an old looking shed, and to the east there is what looks to be an infirmary. "
         "Newt has a lot to talk to you about, make sure to see what all he has to say.",
         {}, {});
+    Room* Hut1      = new Room("Hut1",
+        "You walk into a small hut with a bed and a table. ",
+        {}, {});
+    Room* Hut2      = new Room("Hut2",
+        "You walk into a small hut with a bed and a table. ",
+        {}, {});
     gally = new Helper("Gally", "A suspicious runner who is always on the lookout to teach new runners some sense.", 100.0,{7,7,7,7});
     Room* walls      = new Room("The Walls",
         "You walk towards the walls and hear a subtle shifting of gears within them.",
@@ -77,9 +83,11 @@ void World::createWorld() {
     Room::connectRooms(glade,"north", walls,"south");
     Room::connectRooms(walls,"north", Maze,"south");
     Room::connectRooms(campGround,"north", shed,"south");
+    Room::connectRooms(walls,"east",shed,"west");
     Room::connectRooms(campGround,"east",infirmary,"west");
     Room::connectRooms(glade,"south",Lake,"north");
     Room::connectRooms(glade,"west",TrainingGrounds,"east");
+    Room::connectRooms(TrainingGrounds,"north",TheWoods,"south");
     Room::connectRooms(TheWoods,"up",TreeHouse,"down");
 
     // --- Place starting items ---
@@ -104,7 +112,7 @@ void World::createWorld() {
     metal->putInRoom(campGround);
 
     // --- Register all rooms ---
-    rooms = { startRoom, glade, campGround, walls, Maze, shed, infirmary, Lake, TrainingGrounds, TheWoods, TreeHouse };
+    rooms = { startRoom, glade, campGround, walls, Maze, shed, infirmary, Lake, TrainingGrounds, TheWoods, TreeHouse, Hut1, Hut2 };
 }
 void World::createWorldLvlTwo() {
     Room* shed      = getRoomByName("The Shed");
@@ -134,10 +142,8 @@ void World::createWorldLvlTwo() {
          infirmary->addNpcEntity(pete);
         }
     if (shed){
-        shed->setDescription("You walk in to see a small workshop with a couple of workbenches. "
-            "There are a few tools and scrapped materials scattered around the room.");
-        if (shed){ 
-            shed->addNpcEntity(newt);
+        Room* insideShed = new Room("Inside The Shed","You walk in to see a small workshop with a couple of workbenches. There are a few tools and scrapped materials scattered around the room.",{},{});        if (shed){ 
+        insideShed->addNpcEntity(newt);
         }
     }
     campGround->removeNpcEntity(newt);

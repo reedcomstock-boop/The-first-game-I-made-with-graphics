@@ -6,6 +6,7 @@
 #include "player.h"
 #include "items.h"
 #include "Entity.h"
+#include "Notifications.h"
 #include "stats.h"
 #include <iostream>
 #include "raylib.h"
@@ -79,16 +80,38 @@ int main() {
             if (IsKeyDown(KEY_UP))    dy -= 1.0f;
             if (IsKeyDown(KEY_DOWN))  dy += 1.0f;
         } else {
-            // Arrow keys scroll the conversation transcript instead of moving.
             if (IsKeyPressed(KEY_UP))   loop.scrollDialogueHistory(-1);
             if (IsKeyPressed(KEY_DOWN)) loop.scrollDialogueHistory(1);
         }
+        // --- Try to apply movement with collision check ---
+        Room* here = player.getLocation();   // <-- move it up to here
+        std::string roomName = here ? here->getName() : "";
 
-        playerX += dx * MOVE_SPEED * dt;
-        playerY += dy * MOVE_SPEED * dt;
+        float nextX = playerX + dx * MOVE_SPEED * dt;
+        float nextY = playerY + dy * MOVE_SPEED * dt;
 
-        Room* here = player.getLocation();
+        if (!isSceneTileBlocked(roomName, nextX, playerY))
+            playerX = nextX;
+        if (!isSceneTileBlocked(roomName, playerX, nextY))
+            playerY = nextY;
+        // --- Door transitions (Tiled-driven rooms only) ---
+        if (!loop.isInDialogue()) {
+            TiledDoor door;
+            if (getSceneDoorAt(roomName, playerX, playerY, door)) {
+                Room* target = world.getRoomByName(door.targetRoom);
+                if (target) {
+                    player.setLocation(target);
+                    playerX = door.spawnX;
+                    playerY = door.spawnY;
+                    here = target;               // keep `here`/`roomName` in sync this frame
+                    roomName = door.targetRoom;
+                }
+                // else: targetName doesn't match a real Room yet — no-op until you fix it in Tiled
+            }
+        }
 
+        // Edge-of-room transitions — here is already declared above
+ 
         if (playerX < 0.0f) {
             if (here && here->getDestination("west")) {
                 loop.runFrame("go west");
@@ -141,13 +164,14 @@ int main() {
             else if (dir == "south" || dir == "down")  animator.setState(AnimState::RunDown);
             else if (dir == "east")                    animator.setState(AnimState::RunRight);
             else if (dir == "west")                    animator.setState(AnimState::RunLeft);
-            else                                        animator.setState(AnimState::RunDown);
+            else                                            animator.setState(AnimState::RunDown);
             lastCommand.clear();
         } else {
             animator.setState(AnimState::IdleDown);
         }
 
         animator.update(dt);
+        Notifications::update(dt);
 
         // --- Draw ---
         drawGame(world, player, inputBuffer, animator, loop.getDialogue(), playerX, playerY);
