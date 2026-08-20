@@ -83,9 +83,11 @@ void World::createWorld() {
     Room::connectRooms(glade,"north", walls,"south");
     Room::connectRooms(walls,"north", Maze,"south");
     Room::connectRooms(campGround,"north", shed,"south");
+    Room::connectRooms(walls,"east",shed,"west");
     Room::connectRooms(campGround,"east",infirmary,"west");
     Room::connectRooms(glade,"south",Lake,"north");
     Room::connectRooms(glade,"west",TrainingGrounds,"east");
+    Room::connectRooms(TrainingGrounds,"north",TheWoods,"south");
     Room::connectRooms(TheWoods,"up",TreeHouse,"down");
 
     // --- Place starting items ---

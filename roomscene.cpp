@@ -282,6 +282,14 @@ ManualLayout theShed;
 }
 bool RoomSceneManager::isTileBlocked(const std::string& roomName,
                                       float relX, float relY) const {
+    // Coordinates just outside the viewport are intentionally allowed so the
+    // room-exit transition logic in main.cpp can trigger the door/exit change.
+    // If we reject those as wall collisions here, the player never reaches the
+    // >1.0 or >1.0 checks that call "go east" / "go south".
+    if (relX < 0.0f || relX > 1.0f || relY < 0.0f || relY > 1.0f) {
+        return false;
+    }
+
     // Tiled-driven rooms check the real collision layer.
     auto tiledIt = g_tiledRooms.find(roomName);
     if (tiledIt != g_tiledRooms.end() && tiledIt->second.loaded &&
@@ -323,6 +331,14 @@ void RoomSceneManager::loadTilesets(const std::string& assetDir) {
     registerTileset("walls",   assetDir + "/tiles/Wall_Tiles.png");
     registerTileset("water",   assetDir + "/tiles/Water_tiles.png");
     registerTileset("dungeon", assetDir + "/tiles/Dungeon_Tiles.png");
+
+    registerTileset("interior_walls", assetDir + "/tiles/Interior_Walls_01.png");
+    registerTileset("interior_props", assetDir + "/tiles/Interior_Props_01.png");
+    registerTileset("props",          assetDir + "/tiles/Props.png");
+    registerTileset("roofs",          assetDir + "/tiles/Roofs.png");
+    registerTileset("wall_variations",assetDir + "/tiles/Wall_Variations.png");
+    registerTileset("shadows",        assetDir + "/tiles/Shadows.png");
+
     defineManualLayouts(); // must come after tilesets are registered — needs their indices
 }
 
@@ -395,12 +411,17 @@ void RoomSceneManager::loadNpcSprites(const std::string& assetDir) {
 void RoomSceneManager::loadProps(const std::string& assetDir) {
     {
         StripAnimator a;
-        a.addClip("burn", assetDir + "/Props/Bonfire_01-Sheet.png", 4, 0.15f, 32, 32);
+        a.addClip("burn",
+                  assetDir + "/Props/Bonfire_01-Sheet.png",
+                  4, 0.15f, 32, 32);
         propAnimators["bonfire"] = std::move(a);
     }
+
     {
         StripAnimator a;
-        a.addClip("burn", assetDir + "/Props/Iron_01-Sheet.png", 2, 0.30f, 32, 96);
+        a.addClip("burn",
+                  assetDir + "/Props/Iron_01-Sheet.png",
+                  2, 0.30f, 32, 96);
         propAnimators["forge_iron"] = std::move(a);
     }
 }
@@ -468,33 +489,107 @@ static bool loadTmxLayerCSV(const std::string& tmx,const std::string& layerName,
 // a separate bug from figuring out which tileset a GID belongs to.
 //
 // Returned as {firstgid, runtimeIdx} pairs sorted ascending by firstgid.
+
+// Reads every <tileset firstgid="N" source="....tsx"/> declaration out of a
+// TMX file and maps each one, by filename, to a runtime tileset index using
+// whatever tilesets have been registered via registerTileset(). Matching is
+// substring-based against each registered tileset's own name/path so any
+// number of sheets can be added without touching this function again.
 static std::vector<std::pair<int,int>> parseTmxTilesetRanges(
-        const std::string& tmx, int floorsIdx, int dungeonIdx,
-        int wallsIdx, int waterIdx) {
+        const std::string& tmx,
+        const std::unordered_map<std::string,int>& tilesetIndex) {
+
     std::vector<std::pair<int,int>> ranges;
 
-    std::regex tsRegex(R"RX(<tileset\s+firstgid="(\d+)"\s+source="([^"]*)")RX",
-                        std::regex_constants::icase);
+    std::regex tsRegex(
+        R"RX(<tileset\s+firstgid="(\d+)"\s+source="([^"]*)")RX",
+        std::regex_constants::icase
+    );
 
-    for (std::sregex_iterator it(tmx.begin(), tmx.end(), tsRegex), end; it != end; ++it) {
+    for (std::sregex_iterator it(tmx.begin(), tmx.end(), tsRegex), end;
+         it != end; ++it) {
+
         int firstgid = std::stoi((*it)[1].str());
         std::string source = (*it)[2].str();
 
+        // Get just the filename.
         std::string filename = source;
         size_t slash = filename.find_last_of("/\\");
-        if (slash != std::string::npos) filename = filename.substr(slash + 1);
+        if (slash != std::string::npos) {
+            filename = filename.substr(slash + 1);
+        }
+
+        // Remove extension.
+        size_t dot = filename.find_last_of('.');
+        std::string stem =
+            (dot != std::string::npos)
+                ? filename.substr(0, dot)
+                : filename;
+
+        // Lowercase for matching.
+        std::string stemLower = stem;
+        std::transform(
+            stemLower.begin(),
+            stemLower.end(),
+            stemLower.begin(),
+            [](unsigned char c) {
+                return (char)std::tolower(c);
+            }
+        );
 
         int idx = -1;
-        if (filename.find("Floors") != std::string::npos)       idx = floorsIdx;
-        else if (filename.find("Dungeon") != std::string::npos) idx = dungeonIdx;
-        else if (filename.find("Wall") != std::string::npos)    idx = wallsIdx;
-        else if (filename.find("Water") != std::string::npos)   idx = waterIdx;
+        size_t bestLen = 0;
+
+        // Match against the registered runtime tileset names.
+        for (const auto& kv : tilesetIndex) {
+
+            std::string keyLower = kv.first;
+
+            std::transform(
+                keyLower.begin(),
+                keyLower.end(),
+                keyLower.begin(),
+                [](unsigned char c) {
+                    return (char)std::tolower(c);
+                }
+            );
+
+            // Normal match.
+            if (stemLower.find(keyLower) != std::string::npos &&
+                keyLower.size() > bestLen) {
+
+                idx = kv.second;
+                bestLen = keyLower.size();
+            }
+
+            // Special case:
+            // runtime name is "walls", but the actual tileset is
+            // "Wall_Tiles".
+            //
+            // "wall_tiles" does not contain "walls", so explicitly
+            // treat Wall_Tiles as the registered "walls" tileset.
+            if (keyLower == "walls" &&
+                (stemLower == "wall_tiles" ||
+                 stemLower.find("wall_tiles") != std::string::npos)) {
+
+                idx = kv.second;
+                bestLen = keyLower.size();
+            }
+        }
 
         if (idx != -1) {
             ranges.push_back({firstgid, idx});
-        } else {
-            std::cerr << "[Tiled] Unrecognized tileset source '" << source
-                       << "' — tiles from this tileset will not render.\n";
+
+            std::cout
+                << "[Tiled] Tileset '" << source
+                << "' -> runtime tileset " << idx
+                << " (firstgid " << firstgid << ")\n";
+        }
+        else {
+            std::cerr
+                << "[Tiled] Unrecognized tileset source '"
+                << source
+                << "' — tiles from this tileset will not render.\n";
         }
     }
 
@@ -596,11 +691,18 @@ static void loadTmxDoors(const std::string& tmx, int mapWidthPx, int mapHeightPx
         std::cout << "[DEBUG DOOR] name='" << d.name << "' target='" << d.targetRoom << "' rect=(" << d.x0 << "," << d.y0 << ")-(" << d.x1 << "," << d.y1 << ")\n";
     }
 }
-// Parses <objectgroup name="props"> ... <object name="clipName" x=".." y=".."/> ...
-// Point/rect objects placed in Tiled under a "props" layer. The object's
-// `name` must match a clip registered in RoomSceneManager::loadProps()
-// (e.g. "bonfire", "forge_iron"). Position is stored as a 0..1 fraction of
-// the map so any room size works the same way doors already do.
+// Parses <objectgroup name="props"> ... <object .../> ... </objectgroup>.
+// Point/rect objects placed in Tiled under a "props" layer. Each object's
+// prop name — which clip in RoomSceneManager::loadProps() to draw (e.g.
+// "bonfire", "forge_iron") — can come from either place Tiled might put it:
+//   1. name="bonfire" directly on the <object> tag, OR
+//   2. a nested custom property: <property name="Name" value="bonfire"/>
+// (2) is what Tiled produces if you add a custom "Name" property in the
+// object's Properties panel instead of using the object's own Name field —
+// easy to do by accident, and what The_Camp_Ground.tmx actually has.
+// Position is stored as a 0..1 fraction of the map so any room size works
+// the same way doors already do; when width/height are present we center
+// on the object's rect rather than using its top-left corner.
 static void loadTmxProps(const std::string& tmx, int mapWidthPx, int mapHeightPx,
                           std::vector<PropInstance>& out)
 {
@@ -613,27 +715,50 @@ static void loadTmxProps(const std::string& tmx, int mapWidthPx, int mapHeightPx
     if (!std::regex_search(tmx, groupMatch, groupRegex)) return;
     std::string block = groupMatch[1].str();
 
+    // Capture id/name(optional)/x/y/width(optional)/height(optional), then
+    // the object's inner body (group 6) so we can also look for a nested
+    // <property name="Name" value=".."/> when the tag itself has no name.
+    // Self-closing (<object .../>) and open/close (<object ..>...</object>)
+    // forms are both handled.
     std::regex objRegex(
-        R"RX(<object\s+id="\d+"\s+name="([^"]*)"\s+x="([-\d.]+)"\s+y="([-\d.]+)")RX");
+        R"RX(<object\s+id="\d+"(?:\s+name="([^"]*)")?\s+x="([-\d.]+)"\s+y="([-\d.]+)"(?:\s+width="([-\d.]+)")?(?:\s+height="([-\d.]+)")?\s*(?:/>|>([\s\S]*?)</object>))RX");
+
+    std::regex namePropRegex(
+        R"RX(<property\s+name="Name"\s+value="([^"]*)"\s*/>)RX",
+        std::regex_constants::icase);
 
     for (std::sregex_iterator it(block.begin(), block.end(), objRegex), end; it != end; ++it) {
         std::smatch m = *it;
-        std::string clipName = m[1].str();
+
+        std::string clipName = m[1].matched ? m[1].str() : "";
+        if (clipName.empty() && m[6].matched) {
+            std::smatch pm;
+            std::string body = m[6].str();
+            if (std::regex_search(body, pm, namePropRegex)) {
+                clipName = pm[1].str();
+            }
+        }
         if (clipName.empty()) continue;
 
         float x = std::stof(m[2].str());
         float y = std::stof(m[3].str());
+        float w = m[4].matched ? std::stof(m[4].str()) : 0.0f;
+        float h = m[5].matched ? std::stof(m[5].str()) : 0.0f;
 
         PropInstance p;
         p.clipName = clipName;
-        p.relX = x / (float)mapWidthPx;
-        p.relY = y / (float)mapHeightPx;
+        p.relX = (x + w * 0.5f) / (float)mapWidthPx;
+        p.relY = (y + h * 0.5f) / (float)mapHeightPx;
         out.push_back(p);
     }
 }
+static std::vector<std::pair<int,int>> parseTmxTilesetRanges(
+    const std::string& tmx,
+    const std::unordered_map<std::string,int>& tilesetIndex);
+    
 static bool loadTiledRoom(const std::string& path, const std::string& roomName,
-                           RoomScene& scene, int floorsIdx, int dungeonIdx, int wallsIdx,
-                           int waterIdx){
+                           RoomScene& scene,const std::unordered_map<std::string,int>& tilesetIndex) {
+
     std::ifstream file(path);
 
     if (!file.is_open()) {
@@ -703,7 +828,7 @@ static bool loadTiledRoom(const std::string& path, const std::string& roomName,
     data.height     = height;
     data.collision  = collision;
     data.loaded     = true;
-    data.gidRanges  = parseTmxTilesetRanges(tmx, floorsIdx, dungeonIdx, wallsIdx, waterIdx);
+    data.gidRanges = parseTmxTilesetRanges(tmx, tilesetIndex);
     // Keep these arrays populated for compatibility with the existing
     // RoomScene structure. The Tiled draw path in drawFloor() below
     // performs the actual layered rendering for rooms present in g_tiledRooms.
@@ -769,7 +894,7 @@ void RoomSceneManager::buildLayouts(const World& world, int cols, int rows) {
             if (probe.good()) {
                 probe.close();
                 RoomScene tiledScene;
-                if (loadTiledRoom(tiledPath, name, tiledScene, floorsIdx, dungeonIdx, wallsIdx, waterIdx)) {
+                if (loadTiledRoom(tiledPath, name, tiledScene, tilesetIndex)) {
                     tiledScene.props = g_tiledRooms[name].props; 
                     rooms[name] = tiledScene;
                     std::cout << "[Tiled] Using Tiled map for " << name << "\n";
@@ -885,34 +1010,39 @@ void RoomSceneManager::drawFloor(const std::string& roomName, int originX, int o
         const TiledRoomData& td = tiledIt->second;
 
         auto drawTiledLayer = [&](const std::vector<int>& layer){
-            if ((int)layer.size() != td.width * td.height) {
-                return;
-            }
+        if ((int)layer.size() != td.width * td.height) {
+            return;
+        }
 
-            for (int row = 0; row < td.height; ++row) {
-                for (int col = 0; col < td.width; ++col) {
-                    const int gid = layer[row * td.width + col];
-                    if (gid == 0) continue;
+        for (int row = 0; row < td.height; ++row) {
+            for (int col = 0; col < td.width; ++col) {
+                const int gid = layer[row * td.width + col];
+                if (gid == 0) continue;
 
-                    const TileRef t = tiledGidToTileRef( gid, td.gidRanges);
-                
-                    if (t.tilesetId < 0 || t.tilesetId >= (int)tilesets.size() || t.tileIndex < 0) {
-                        continue;
-                    }
+                const TileRef t = tiledGidToTileRef( gid, td.gidRanges);
+            
+                if (t.tilesetId < 0 || t.tilesetId >= (int)tilesets.size() || t.tileIndex < 0) {
+                    continue;
+                }
 
-                    const int x = originX + col * tileDraw;
-                    const int y = originY + row * tileDraw;
+                const int x = originX + col * tileDraw;
+                const int y = originY + row * tileDraw;
 
-                    if (tilesets[t.tilesetId].isLoaded()) {
-                        tilesets[t.tilesetId].drawTile(t.tileIndex,x,y,scale);
-                    }
+                if (tilesets[t.tilesetId].isLoaded()) {
+                    tilesets[t.tilesetId].drawTile(t.tileIndex,x,y,scale);
+                }
 
-                    else {
-                        DrawRectangle(x,y,tileDraw,tileDraw,TILESET_COLORS[t.tilesetId]);
-                    }
+                else {
+                    // REPLACE THIS LINE:
+                    // DrawRectangle(x,y,tileDraw,tileDraw,TILESET_COLORS[t.tilesetId]);
+
+                    // WITH THIS:
+                    Color fallback = (t.tilesetId < 4) ? TILESET_COLORS[t.tilesetId] : Color{200, 0, 200, 255};
+                    DrawRectangle(x, y, tileDraw, tileDraw, fallback);
                 }
             }
-        };
+        }
+    };
 
         // Match the layer concept from Tiled:
         // base -> overlays. Transparent wall pixels now reveal ground.

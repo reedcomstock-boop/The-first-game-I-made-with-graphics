@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="23" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="11">
- <tileset firstgid="1" source="../../../../../../Floors_Tiles.tsx"/>
- <tileset firstgid="651" source="../../../../../../Dungeon_Tiles.tsx"/>
- <tileset firstgid="1276" source="../../../../../../Wall_Tiles.tsx"/>
+ <tileset firstgid="1" source="../tiles/Floors_Tiles.tsx"/>
+ <tileset firstgid="651" source="../tiles/Dungeon_Tiles.tsx"/>
+ <tileset firstgid="1276" source="../tiles/Wall_Tiles.tsx"/>
  <layer id="5" name="collision" class="collision" width="23" height="11">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -14,8 +14,8 @@
 0,0,905,905,0,0,905,0,0,0,0,0,905,905,905,905,905,905,905,0,0,0,0,
 0,0,905,905,0,0,905,0,0,0,0,0,0,905,0,0,905,905,0,0,0,0,0,
 0,0,905,905,0,0,905,0,0,0,0,0,0,905,0,0,905,905,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,905,0,0,905,905,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,905,905,0,0,0,0,0,
+959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959,959
 </data>
  </layer>
  <layer id="1" name="ground" width="23" height="11">
