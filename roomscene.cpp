@@ -7,12 +7,7 @@
 #include <regex>
 #include <sstream>
  
-// Pixel Crawler's tile sheets are built entirely from autotile connector
-// pieces (crosses, hooks, corners meant to combine into a matched edge set) —
-// there is no single index in any of these sheets that renders as a flat
-// fill on its own. Rather than fight that, draw a solid color per tileset
-// type; registration order in loadTilesets() is floors=0, walls=1, water=2,
-// dungeon=3.
+
 static const Color TILESET_COLORS[4] = {
     { 46, 92, 40, 255 },    // floors — grass green
     { 90, 78, 64, 255 },    // walls — stone/brown
@@ -71,9 +66,17 @@ static std::string tiledMapPathForRoom(const std::string& roomName) {
  
 // --- Repeatable TileRef fills (row*25+col) ---
 static const int DUNGEON_WALL_INDEX        = 2;
-static const int DUNGEON_WALL_CORNER_INDEX = 3;
-static const int DUNGEON_FLOOR_INDEX       = 55;
+//static const int DUNGEON_WALL_CORNER_INDEX = 3;
+//static const int DUNGEON_FLOOR_INDEX       = 55;
  
+// --- UNUSED as of switching Camp Ground/Cage/Shed to Tiled maps ---
+// These were only referenced by defineManualLayouts()'s campGround/theCage/
+// theShed ManualLayout blocks below. All three rooms now load from
+// assets/maps/*.tmx and hit `continue` in buildLayouts() before
+// g_manualLayouts is ever consulted, so this whole decor catalog is dead
+// code. Left commented (not deleted) in case a future room without a .tmx
+// wants to reuse the manual-layout system.
+/*
 static const int DUNGEON_RAIL_CAP_INDEX    = 14 * 25 + 0; // row14,col0 — top rail, any zone
 static const int DUNGEON_RAIL_ORANGE_INDEX = 16 * 25 + 1; // row16,col1 — railing body, orange zone
 static const int DUNGEON_RAIL_BLUE_INDEX   = 16 * 25 + 4; // row16,col4 — railing body, blue zone
@@ -111,9 +114,8 @@ static const FeatureRect DUNGEON_CRACKED_WALL     = { 8,  13, 1, 4 };
  
 // Orb clusters (bottom of sheet). Blue/green were off by one column vs the
 // orange one — confirmed by cropping cols 0-12, rows 17-22 with a grid.
-// Currently unused by any room; left here (commented) for when needed.
- static const FeatureRect DUNGEON_ORB_ORANGE     = { 0, 19, 3, 3 };
- static const FeatureRect DUNGEON_ORB_ORANGE_CAP = { 1, 18, 1, 1 };
+static const FeatureRect DUNGEON_ORB_ORANGE     = { 0, 19, 3, 3 };
+static const FeatureRect DUNGEON_ORB_ORANGE_CAP = { 1, 18, 1, 1 };
 // static const FeatureRect DUNGEON_ORB_BLUE       = { 3, 19, 3, 3 };  // was {4,19,3,3}
 // static const FeatureRect DUNGEON_ORB_BLUE_CAP   = { 4, 18, 1, 1 };  // was {5,18,1,1}
 // static const FeatureRect DUNGEON_ORB_GREEN      = { 6, 19, 3, 3 };  // was {8,19,3,3}
@@ -122,6 +124,11 @@ static const FeatureRect DUNGEON_CRACKED_WALL     = { 8,  13, 1, 4 };
 // Approximate — verify visually before uncommenting/using:
 static const FeatureRect DUNGEON_BANNER_APPROX    = { 4,  10, 1, 4 };
 static const FeatureRect DUNGEON_FOLIAGE_APPROX   = { 12, 0,  2, 5 };
+*/
+ 
+// FeatureRect is still needed as a type (used by DF() below, which the
+// manual-layout system still declares even though it's currently unused).
+struct FeatureRect { int col, row, w, h; };
  
 
 RoomSceneManager::RoomSceneManager() {}
@@ -148,6 +155,11 @@ struct ManualLayout {
     std::unordered_map<char, TileRef> legend;
     std::unordered_map<char, TileRef> decorLegend;
 };
+// DF() helpers — UNUSED. Only ever called from the three room definitions
+// commented out below (all now unreachable: Camp Ground/Cage/Shed load from
+// Tiled .tmx files, which buildLayouts() checks *before* g_manualLayouts,
+// via a `continue` that skips this system entirely for those room names).
+/*
 // Overload: accept a flat tile index (row*25+col) for single-cell features.
 static DecorFeature DF(int tilesetId, int flatTileIndex, int gridCol, int gridRow) {
     int col = flatTileIndex % 25;
@@ -158,9 +170,23 @@ static DecorFeature DF(int tilesetId, int flatTileIndex, int gridCol, int gridRo
 static DecorFeature DF(int tilesetId, const FeatureRect& r, int gridCol, int gridRow) {
     return { tilesetId, r.col, r.row, r.w, r.h, gridCol, gridRow };
 }
+*/
 
 static std::unordered_map<std::string, ManualLayout> g_manualLayouts;
 
+// defineManualLayouts() — UNUSED as of switching to Tiled.
+//
+// All three rooms defined here (Camp Ground, Cage, Shed) now have their own
+// assets/maps/*.tmx and load through the Tiled path in buildLayouts(),
+// which `continue`s before ever reaching g_manualLayouts.find(name). So
+// this function currently runs, builds three ManualLayout structs, and
+// stores them in g_manualLayouts — but nothing ever reads them back out.
+//
+// Kept commented (not deleted) rather than removed outright: if a future
+// room is added without a .tmx map, this is the fallback system it would
+// use, and isTileBlocked()/buildLayouts() below still contain the (cheap,
+// harmless) lookup code that would pick it back up automatically.
+/*
 void RoomSceneManager::defineManualLayouts() {
     int floorsIdx  = tilesetIndex.count("floors")  ? tilesetIndex["floors"]  : -1;
     int wallsIdx   = tilesetIndex.count("walls")   ? tilesetIndex["walls"]   : -1;
@@ -222,13 +248,13 @@ void RoomSceneManager::defineManualLayouts() {
         "&###################&",
     };
     
-    /*theCage.decorRows = {
+    theCage.decorRows = {
         " TT######TT",
         " D........#",
         " #...B.....",
         " #....S...X",
         " ##########",
-    };*/
+    };
     g_manualLayouts["The Cage"] = theCage;
 ManualLayout theShed;
     theShed.legend = {
@@ -270,15 +296,22 @@ ManualLayout theShed;
         "&###################&",
     };
     
-    /*theShed.decorRows = {
+    theShed.decorRows = {
         " TT######TT",
         " D........#",
         " #...B.....",
         " #....S...X",
         " ##########",
-    };*/
+    };
     g_manualLayouts["The Shed"] = theShed;
 
+}
+*/
+// defineManualLayouts() must still exist as a callable no-op — loadTilesets()
+// calls it, and it's declared in roomscene.h. See comment block above for why
+// its body is empty.
+void RoomSceneManager::defineManualLayouts() {
+    // Intentionally empty — see comment above.
 }
 bool RoomSceneManager::isTileBlocked(const std::string& roomName,
                                       float relX, float relY) const {

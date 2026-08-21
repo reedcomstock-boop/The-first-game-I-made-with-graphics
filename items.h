@@ -19,10 +19,23 @@ public:
 
     void putInRoom(Room* room);
 
+    // Optional on-screen position, as a fraction (0..1) of the room's scene
+    // viewport — same convention as door spawn points and prop placement.
+    // Unset by default (hasPosition()==false), meaning the item only shows
+    // up in the text "Items" list like before and draws nothing in the
+    // scene. Call setPosition() to also place a visible icon in the room,
+    // e.g. next to a crate tile.
+    void setPosition(float relX, float relY);
+    bool hasPosition() const;
+    float getPosX() const;
+    float getPosY() const;
+
 private:
     std::string name;
     std::string description;
     Room* location;
+    bool positionSet = false;
+    float posX = 0.0f, posY = 0.0f;
 };
 
 class Tool : public Item {

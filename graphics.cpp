@@ -369,6 +369,19 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
         spriteScale
     );
 
+    // Items with a set position (see Item::setPosition) draw as a small
+    // marker in the scene, e.g. next to a crate decor tile — items with no
+    // position set (the default) are skipped here and only show up in the
+    // text "Items" list below, same as before this was added.
+    for (const auto& item : room->getItems()) {
+        if (!item->hasPosition()) continue;
+        Vector2 iconPos = {
+            drawX + item->getPosX() * drawW,
+            drawY + item->getPosY() * drawH
+        };
+        DrawCircleV(iconPos, 5.0f * SX(), C_ITEM);
+    }
+
     // drawNpcs() internally divides its supplied scale by 2, so pass
     // double the desired final sprite scale.
     g_scene.drawNpcs(
@@ -747,5 +760,6 @@ void drawGame(const World& world, const Player& player,
     drawHUD(player);
     drawPortrait(world, player);
     drawInputBar(inputBuffer);
+ 
     EndDrawing();
 }
