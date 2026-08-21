@@ -491,6 +491,42 @@ static void drawRoom(const Room* room, SpriteAnimator& thomas, float relX, float
             ny += LINE_H();
         }
     }
+
+    // "option notif" — a blocking prompt (e.g. door confirmations) drawn the
+    // same way as a regular notification box, but stays up until answered
+    // instead of expiring on a timer, and includes the option lines below
+    // the prompt text. Drawn after the regular notes box so it layers on
+    // top if both happen to be showing at once.
+    const OptionNotification& opt = Notifications::getOption();
+    if (opt.active) {
+        int optLineCount = 1 + (int)opt.options.size(); // prompt text + each option line
+        Rectangle optBox = {
+            (float)descX - 4 * SX(),
+            (float)descY - 4 * SY(),
+            (float)descW + 8 * SX(),
+            LINE_H() * (float)optLineCount + 12 * SY()
+        };
+
+        Color overlayBg = {
+            C_INPUT_BG.r,
+            C_INPUT_BG.g,
+            C_INPUT_BG.b,
+            235
+        };
+
+        DrawRectangleRec(optBox, overlayBg);
+        DrawRectangleLinesEx(optBox, 1.5f, C_EXIT); // distinct border color from plain notifs
+
+        int oy = (int)optBox.y + (int)(6 * SY());
+
+        DrawText(opt.text.c_str(), descX + (int)(8 * SX()), oy, FS(), C_ACCENT);
+        oy += LINE_H();
+
+        for (const auto& o : opt.options) {
+            DrawText(o.c_str(), descX + (int)(8 * SX()), oy, FS(), C_EXIT);
+            oy += LINE_H();
+        }
+    }
 }
 
 // -----------------------------------------------------------------------

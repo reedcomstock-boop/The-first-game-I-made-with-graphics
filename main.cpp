@@ -40,8 +40,9 @@ int main() {
     std::string lastCommand;
 
     float playerX = 0.5f;   // fraction of scene viewport (0..1)
-    float playerY = 0.65f;
+    float playerY = 0.1f;
     const float MOVE_SPEED = 0.9f; // fraction of viewport per second
+    bool wasOnDoor = false; // edge-detection for door prompts — see the door-transition block below
 
     while (!WindowShouldClose() && loop.isPlaying()) {
 
@@ -72,14 +73,26 @@ int main() {
             inputBuffer.clear();
         }
 
+        // If the player just confirmed "A. Yes" on a door prompt this frame,
+        // apply the new position now, before movement/collision runs below
+        // with a `roomName` that's about to change anyway.
+        {
+            float doorX, doorY;
+            if (loop.consumeConfirmedDoor(doorX, doorY)) {
+                playerX = doorX;
+                playerY = doorY;
+                wasOnDoor = false; // freshly arrived — not necessarily standing on a door here
+            }
+        }
+
         // --- Arrow keys: free movement inside the room, edge = room change ---
         float dx = 0.0f, dy = 0.0f;
-        if (!loop.isInDialogue()) {
+        if (!loop.isPromptActive()) {
             if (IsKeyDown(KEY_LEFT))  dx -= 1.0f;
             if (IsKeyDown(KEY_RIGHT)) dx += 1.0f;
             if (IsKeyDown(KEY_UP))    dy -= 1.0f;
             if (IsKeyDown(KEY_DOWN))  dy += 1.0f;
-        } else {
+        } else if (loop.isInDialogue()) {
             if (IsKeyPressed(KEY_UP))   loop.scrollDialogueHistory(-1);
             if (IsKeyPressed(KEY_DOWN)) loop.scrollDialogueHistory(1);
         }
@@ -95,19 +108,17 @@ int main() {
         if (!isSceneTileBlocked(roomName, playerX, nextY))
             playerY = nextY;
         // --- Door transitions (Tiled-driven rooms only) ---
-        if (!loop.isInDialogue()) {
+        // Edge-triggered: only fires requestDoorEntry() the frame the player
+        // steps onto a door hotspot, not every frame they're standing on it —
+        // otherwise declining ("B. No") would just reopen the same prompt
+        // again on the very next frame.
+        if (!loop.isPromptActive()) {
             TiledDoor door;
-            if (getSceneDoorAt(roomName, playerX, playerY, door)) {
-                Room* target = world.getRoomByName(door.targetRoom);
-                if (target) {
-                    player.setLocation(target);
-                    playerX = door.spawnX;
-                    playerY = door.spawnY;
-                    here = target;               // keep `here`/`roomName` in sync this frame
-                    roomName = door.targetRoom;
-                }
-                // else: targetName doesn't match a real Room yet — no-op until you fix it in Tiled
+            bool onDoorNow = getSceneDoorAt(roomName, playerX, playerY, door);
+            if (onDoorNow && !wasOnDoor) {
+                loop.requestDoorEntry(door.targetRoom, door.spawnX, door.spawnY);
             }
+            wasOnDoor = onDoorNow;
         }
 
         // Edge-of-room transitions — here is already declared above
@@ -182,4 +193,4 @@ int main() {
 
     CloseWindow();
     return 0;
-}
+}   

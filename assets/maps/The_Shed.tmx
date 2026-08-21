@@ -4,14 +4,15 @@
  <tileset firstgid="626" source="../tiles/Floors_Tiles.tsx"/>
  <tileset firstgid="1276" source="../tiles/Roofs.tsx"/>
  <tileset firstgid="1901" source="../tiles/Wall_Tiles.tsx"/>
- <tileset firstgid="2526" source="Props.tsx"/>
+ <tileset firstgid="2526" source="../tiles/Props.tsx"/>
+ <tileset firstgid="3151" source="../tiles/Water_tiles.tsx"/>
  <layer id="1" name="collision" width="23" height="11">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,1985,1985,1985,1985,1985,1985,1985,1985,1985,1985,
 0,0,0,0,0,0,0,0,0,0,0,0,0,1985,1985,1985,0,1985,1985,1985,1985,1985,1985,
 0,0,0,0,0,0,0,0,0,0,0,0,0,1985,1985,1985,1985,1985,1985,1985,1985,1985,1985,
 0,0,0,0,0,0,0,0,0,0,0,0,0,1985,1985,1985,1985,0,0,1985,1985,1985,1985,
-0,0,0,0,0,0,0,0,0,0,0,0,0,1985,1985,1985,1985,0,0,1985,1985,1985,1985,
+0,0,0,0,0,0,0,0,0,0,0,0,0,1985,1985,1985,1985,3333,3333,1985,1985,1985,1985,
 0,0,0,0,0,0,0,0,0,0,0,0,0,1985,1985,1985,1985,0,0,1985,1985,1985,1985,
 0,0,0,0,0,0,0,0,0,0,0,0,0,1985,0,0,0,0,0,0,0,0,1985,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -80,8 +81,8 @@
 0,12,0,0,0,0,0,0,12,0,0,0,0,0,0,0,0,0,12,0,0,0,12
 </data>
  </layer>
- <objectgroup id="2" name="doors" visible="0">
-  <object id="1" name="Inside Shed" x="275.421" y="56.9837" width="24.6929" height="33.557">
+ <objectgroup id="2" name="doors">
+  <object id="1" name="Inside Shed" x="275.421" y="56.9837" width="24.6929" height="37.9054">
    <properties>
     <property name="TargetName" value="Inside Shed"/>
     <property name="spawnx" type="float" value="0.5"/>

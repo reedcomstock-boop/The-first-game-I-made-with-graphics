@@ -316,7 +316,6 @@ Tool* Player::craftItem(const std::string& name, const std::string& description,
     // Implement crafting logic here
     return new Tool(name, description, level, stats, health, energy);
 }
-
 bool Player::getFirstGrieverDefeated() const { return firstGrieverDefeated; }
 void Player::setFirstGrieverDefeated(bool v) { firstGrieverDefeated = v; }
 bool Player::getBetrayedFriends() const { return betrayedFriends; }

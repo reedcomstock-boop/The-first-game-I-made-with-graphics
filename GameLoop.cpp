@@ -18,6 +18,12 @@ static std::string toLower(std::string s) {
     return s;
 }
 void GameLoop::runFrame(const std::string& input) {
+    if (Notifications::getOption().active) {
+        handleOptionNotifChoice(input);
+        checkWorldProgression();
+        return;   // swallow input while an option notif (door confirm, etc.) is open
+    }
+
     if (dialogue.active) {
         handleDialogueChoice(input);
 
@@ -309,6 +315,10 @@ bool GameLoop::cmdTalk(const std::string& npcName) {
     return true;
 }
 
+bool GameLoop::isPromptActive() const {
+    return dialogue.active || Notifications::getOption().active;
+}
+
 bool GameLoop::handleDialogueChoice(const std::string& input) {
     if (!dialogue.active) return false;
 
@@ -329,6 +339,68 @@ bool GameLoop::handleDialogueChoice(const std::string& input) {
     }
     return true;
 }
+
+bool GameLoop::handleOptionNotifChoice(const std::string& input) {
+    const OptionNotification& opt = Notifications::getOption();
+    if (!opt.active) return false;
+
+    std::string c = input;
+    std::transform(c.begin(), c.end(), c.begin(), ::tolower);
+    if (c.size() != 1 || c[0] < 'a') return false;
+    int choiceIndex = c[0] - 'a';
+    if (choiceIndex < 0 || choiceIndex >= (int)opt.options.size()) return false;
+
+    // Doors are the only thing raising option notifs right now — if you add
+    // another use later (combat prompts, etc.), branch on a tag here instead
+    // of assuming every option notif is a door.
+    if (doorPromptActive) {
+        if (choiceIndex == 0) { // "A. Yes"
+            Room* target = world.getRoomByName(pendingDoorTarget);
+            if (target) {
+                player.setLocation(target);
+                confirmedSpawnX = pendingSpawnX;
+                confirmedSpawnY = pendingSpawnY;
+                doorJustConfirmed = true;
+            }
+            // else: targetName doesn't match a real Room — treat like "No".
+        }
+        doorPromptActive = false;
+        pendingDoorTarget.clear();
+    }
+
+    Notifications::clearOption();
+    return true;
+}
+
+void GameLoop::requestDoorEntry(const std::string& targetRoomName, float spawnX, float spawnY) {
+    // Don't stack this on top of an NPC conversation or another pending prompt.
+    if (dialogue.active || Notifications::getOption().active) return;
+
+    // Only prompt if the door actually leads somewhere real. A Tiled door
+    // with a typo'd/unfinished targetName (doesn't match any Room) just
+    // tells the player it's a no-go instead of asking "Enter ...?" and then
+    // silently doing nothing when they say yes.
+    if (!world.getRoomByName(targetRoomName)) {
+        Notifications::push("You can't go there.");
+        return;
+    }
+
+    doorPromptActive = true;
+    pendingDoorTarget = targetRoomName;
+    pendingSpawnX = spawnX;
+    pendingSpawnY = spawnY;
+
+    Notifications::pushOption("Enter " + targetRoomName + "?", { "A. Yes", "B. No" });
+}
+
+bool GameLoop::consumeConfirmedDoor(float& outX, float& outY) {
+    if (!doorJustConfirmed) return false;
+    outX = confirmedSpawnX;
+    outY = confirmedSpawnY;
+    doorJustConfirmed = false;
+    return true;
+}
+
 
 void GameLoop::scrollDialogueHistory(int delta) {
     if (!dialogue.active || dialogue.history.empty()) return;
@@ -543,4 +615,4 @@ bool GameLoop::checkWorldProgression() {
     }
 
     return changed;
-}
+}   
