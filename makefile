@@ -1,6 +1,6 @@
 CXX = g++
-CFLAGS = -Wall -Wextra -pedantic -Werror -std=gnu++17 -I/opt/homebrew/include
-LDFLAGS = -L/opt/homebrew/lib -lraylib -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
+CFLAGS = -Wall -Wextra -pedantic -Werror -std=c++17 -I/opt/homebrew/include
+LDFLAGS = -L/opt/homebrew/lib -lraylib
 
 Game: main.o player.o updater.o NPC.o rooms.o items.o world.o GameLoop.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o
 	$(CXX) -o Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o $(LDFLAGS)
@@ -37,4 +37,3 @@ Notifications.o: Notifications.cpp Notifications.h
 	$(CXX) -c Notifications.cpp $(CFLAGS)
 clean:
 	rm -f Game main.o player.o NPC.o rooms.o items.o world.o GameLoop.o updater.o graphics.o sprite.o strip_animator.o roomscene.o tileset.o save.o Notifications.o
-
