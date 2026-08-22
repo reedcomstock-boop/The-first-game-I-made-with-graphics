@@ -16,11 +16,11 @@
 int main() {
 
     Stats startStats = {5, 5, 5, 5};
-    Player player("Thomas", "A runner with no memory.", 100.0, startStats);
+    Player player("Callum", "A runner with no memory.", 100.0, startStats);
 
     World world;
     world.createWorld();
-    player.setLocation(world.getRoomByName("The Cage"));
+    player.setLocation(world.getRoomByName("The Chute"));
 
     GameLoop loop(world, player);
     std::string exeDir = GetApplicationDirectory();

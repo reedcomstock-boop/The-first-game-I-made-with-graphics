@@ -108,7 +108,7 @@ void GameLoop::showHelp() {
         "pickup <item>   -- pick up an item",
         "drop <item>     -- drop an item from your inventory",
         "inventory       -- list everything you're carrying",
-        "craft <item>    -- craft gear from materials (near Newt)",
+        "craft <item>    -- craft gear from materials (near Aldric)",
         "use <Tool>      -- use a tool in your inventory",
         "equip <item>    -- equip a tool to gain its stat bonuses",
         "unequip <item>  -- remove a tool's bonuses",
@@ -126,17 +126,17 @@ void GameLoop::showHelp() {
 bool GameLoop::cmdGo(const std::string& direction) {
     Room* current = player.getLocation();
 
-    if (current && current->getName() == "The Walls" && direction == "north") {
+    if (current && current->getName() == "The Ramparts" && direction == "north") {
         if (player.getLevel() < 2) {
             dialogue.active = true;
-            dialogue.speaker = "Gally";
+            dialogue.speaker = "Brecht";
             dialogue.lines = {
-                "Gally steps in front of you.",
-                "Gally: 'Where do you think you're going Greenie? You got a Death Wish or something? Only Runners are allowed to go through the Maze. You need to prove yourself first.'",
-                "You're not a runner yet. Go talk to Newt."
+                "Brecht steps in front of you.",
+                "Brecht: 'Where do you think you're going Greenie? You got a Death Wish or something? Only Pathfinders are allowed to go through the labyrinth. You need to prove yourself first.'",
+                "You're not a Pathfinder yet. Go talk to Aldric."
             };
             dialogue.options.clear();
-            dialogue.npc = current->getNpcByName("Gally");  // nullptr is fine here — see note below
+            dialogue.npc = current->getNpcByName("Brecht");  // nullptr is fine here — see note below
             dialogue.clear_after = true;
             dialogue.recordHistory();
             return false;
@@ -425,7 +425,7 @@ bool GameLoop::cmdCraft(const std::string& itemName) {
     Room* loc = player.getLocation();
     if (!loc) return false;
 
-    if (!loc->getNpcByName("Newt")) {
+    if (!loc->getNpcByName("Aldric")) {
         Notifications::push("There's no one here to help you craft anything.\n");
         return false;
     }
@@ -456,7 +456,7 @@ bool GameLoop::cmdCraft(const std::string& itemName) {
 
     if (crafted) {
         player.PickUpItem(crafted);
-        std::cout << "\nYou watch as Newt crafts a " << crafted->getName() << " for you.\n";
+        std::cout << "\nYou watch as Aldric crafts a " << crafted->getName() << " for you.\n";
         return true;
     }
 
@@ -502,13 +502,13 @@ bool GameLoop::cmdMe() {
     }
 
     if (player.getLevel() == 0){
-        dialogue.lines.push_back("Objective: Talk to Newt until he tells you about being a runner.");
+        dialogue.lines.push_back("Objective: Talk to Aldric until he tells you about being a Pathfinder.");
     }
     else if (player.getLevel() == 1){
-        dialogue.lines.push_back("Objective: Craft your gear and run through the first cycle of the maze.");
+        dialogue.lines.push_back("Objective: Craft your gear and run through the first cycle of the labyrinth.");
     }
     else if (player.getLevel() == 2){
-        dialogue.lines.push_back("Objective: Find your way back to camp and report to the infirmary and to Newt.");
+        dialogue.lines.push_back("Objective: Find your way back to camp and report to the infirmary and to Aldric.");
     }
     else if (player.getLevel() == 3){
         dialogue.lines.push_back("Objective: Find a way to beat the monsters and find the way out. (Hint: EMP?)");
@@ -523,8 +523,8 @@ bool GameLoop::checkWorldProgression() {
 
     bool changed = false;
 
-    // Stage 1 -> 2: talked Newt through to level 1 -> camp/shed/infirmary expand,
-    // Minho + Pete show up.
+    // Stage 1 -> 2: talked Aldric through to level 1 -> camp/shed/infirmary expand,
+    // Rooke + Doc Marrow show up.
     if (pl >= 1 && wl == WorldStage::Glade) {
         world.setWorldLevel(WorldStage::CampExpanded);
         world.createWorldLvlTwo();
@@ -532,87 +532,87 @@ bool GameLoop::checkWorldProgression() {
         changed = true;
     }
 
-    // Stage 2 -> 3: first trip into the maze with Alby + Minho -> First Griever
+    // Stage 2 -> 3: first trip into the labyrinth with Isolde + Rooke -> First Warden
     // encounter (branch point: kill it or flee/betray).
-    if (loc->getName() == "The Maze" && wl == WorldStage::CampExpanded) {
+    if (loc->getName() == "The Labyrinth" && wl == WorldStage::CampExpanded) {
         world.setWorldLevel(WorldStage::MazeOpen);
         world.createMaze();
         world.createFirstGrieverEncounter();
-        Notifications::push("[The maze opens before you. Alby and Minho fall in step beside you...]")   ;
+        Notifications::push("[The labyrinth opens before you. Isolde and Rooke fall in step beside you...]")   ;
         changed = true;
     }
 
-    // Stage 3 -> 4: back at the Glade after the first encounter (killed or fled)
-    // -> discover the safe zone is broken, the maze doesn't seal at night anymore.
-    if (wl == WorldStage::MazeOpen && loc->getName() == "The Glade" &&
+    // Stage 3 -> 4: back at the Hollow after the first encounter (killed or fled)
+    // -> discover the safe zone is broken, the labyrinth doesn't seal at night anymore.
+    if (wl == WorldStage::MazeOpen && loc->getName() == "The Hollow" &&
         (player.getFirstGrieverDefeated() || player.getBetrayedFriends())) {
         world.setWorldLevel(WorldStage::SafeZoneBroken);
         world.createSafeZoneBreach();
-        Notifications::push("[Something's wrong. The walls haven't moved. The Glade isn't safe anymore.]");
+        Notifications::push("[Something's wrong. The walls haven't moved. The Hollow isn't safe anymore.]");
         changed = true;
     }
 
-    // Stage 4 -> 5: Terrisa arrives, now through the Cage.
-    if (wl == WorldStage::SafeZoneBroken && loc->getName() == "The Cage") {
+    // Stage 4 -> 5: Wren arrives, now through the Chute.
+    if (wl == WorldStage::SafeZoneBroken && loc->getName() == "The Chute") {
         world.setWorldLevel(WorldStage::TerrisaArrives);
         world.createTerrisaArrival();
         Notifications::push("[A girl stumbles out of the hatch, unconscious...]");
         changed = true;
     }
 
-    // Stage 5 -> 6: Minho + Newt walk the player through the maze-phase map.
+    // Stage 5 -> 6: Rooke + Aldric walk the player through the labyrinth-phase map.
     if (wl == WorldStage::TerrisaArrives && pl >= 2) {
         world.setWorldLevel(WorldStage::MapRevealed);
         world.createMapReveal();
-        Notifications::push("[Minho and Newt lay out the map of the maze's phases for you.]")   ;
+        Notifications::push("[Rooke and Aldric lay out the map of the labyrinth's phases for you.]")   ;
         changed = true;
     }
 
-    // Stage 6 -> 7: after more crafting/training, heading back into the maze
-    // triggers the phase-two reconfiguration (new rooms + extra grievers).
-    if (wl == WorldStage::MapRevealed && loc->getName() == "The Maze") {
+    // Stage 6 -> 7: after more crafting/training, heading back into the labyrinth
+    // triggers the phase-two reconfiguration (new rooms + extra wardens).
+    if (wl == WorldStage::MapRevealed && loc->getName() == "The Labyrinth") {
         world.setWorldLevel(WorldStage::MazePhaseTwo);
         world.createMazePhaseTwo();
-        Notifications::push("[The maze reconfigures itself around you...]")   ;
+        Notifications::push("[The labyrinth reconfigures itself around you...]")   ;
         changed = true;
     }
 
-    // Stage 7 -> 8: player + Minho reach the sealed exit door.
+    // Stage 7 -> 8: player + Rooke reach the sealed exit door.
     if (wl == WorldStage::MazePhaseTwo && loc->getName() == "Maze7") {
         world.setWorldLevel(WorldStage::MazeExitFound);
-        Notifications::push("[You and Minho find a massive sealed door. It won't budge — not yet.]");
+        Notifications::push("[You and Rooke find a massive sealed door. It won't budge — not yet.]");
         changed = true;
     }
 
-    // Stage 8 -> 9: on the way back, the First Griever (or its corpse) again.
+    // Stage 8 -> 9: on the way back, the First Warden (or its corpse) again.
     if (wl == WorldStage::MazeExitFound && loc->getName() == "Maze5") {
         world.setWorldLevel(WorldStage::GrieverReturnEncounter);
         world.createGrieverReturnEncounter();
         if (player.getFirstGrieverDefeated())
-            Notifications::push("[You find the First Griever's corpse still slumped where you left it.]");
+            Notifications::push("[You find the First Warden's corpse still slumped where you left it.]");
         else
-            Notifications::push("[The First Griever is still out there — and it's found you again.]");
+            Notifications::push("[The First Warden is still out there — and it's found you again.]");
         changed = true;
     }
 
-    // Stage 9 -> 10: remains/venom brought back to camp, Terrisa pushes the choice.
+    // Stage 9 -> 10: remains/venom brought back to camp, Wren pushes the choice.
     if (wl == WorldStage::GrieverReturnEncounter &&
         (loc->getName() == "The Camp Ground" || loc->getName() == "The Infirmary") &&
-        (player.hasItem("Griever Remains") || player.getHarvestedVenom() || player.getFirstGrieverDefeated())) {
+        (player.hasItem("Warden Remains") || player.getHarvestedVenom() || player.getFirstGrieverDefeated())) {
         world.setWorldLevel(WorldStage::FinalPreparation);
         world.createFinalPreparation();
-        Notifications::push("[Terrisa meets you at camp, eyeing what you brought back.]");
+        Notifications::push("[Wren meets you at camp, eyeing what you brought back.]");
         changed = true;
     }
 
     // Stage 10 -> 11: player took the venom (EMP power) -> rally the helpers for
-    // the final push into the maze.
+    // the final push into the labyrinth.
     if (wl == WorldStage::FinalPreparation && player.hasMagic()) {
         world.setWorldLevel(WorldStage::FinalAssault);
         world.createFinalAssault();
-        Notifications::push("[The helpers gather. It's time to finish what the maze started.]");
+        Notifications::push("[The helpers gather. It's time to finish what the labyrinth started.]");
         changed = true;
     }
 
     return changed;
-}   
+}

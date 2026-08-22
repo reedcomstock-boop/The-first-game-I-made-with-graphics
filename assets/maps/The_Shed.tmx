@@ -89,6 +89,5 @@
     <property name="spawny" type="float" value="0.9"/>
    </properties>
   </object>
-  <object id="2" x="18.9946" y="8.86413"/>
  </objectgroup>
 </map>

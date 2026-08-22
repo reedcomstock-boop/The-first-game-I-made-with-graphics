@@ -31,6 +31,16 @@ void Item::putInRoom(Room* room) {
     room->addItem(this);
 }
 
+void Item::setPosition(float relX, float relY) {
+    posX = relX;
+    posY = relY;
+    positionSet = true;
+}
+
+bool Item::hasPosition() const { return positionSet; }
+float Item::getPosX() const { return posX; }
+float Item::getPosY() const { return posY; }
+
 Tool::Tool() : Item(), level(0), stats({0, 0, 0, 0}) {}
 
 Tool::Tool(const std::string& name, const std::string& description, double level, const Stats& stats, double health, double energy)
