@@ -72,7 +72,7 @@ void Helper::update() {
 
 // Local sub-step counters, one per named Helper, so multi-question chats
 // within a single dialogueProgress/level stage can pause mid-conversation.
-// Keyed by NPC pointer so Gally/Minho/Terrisa/Alby don't share state.
+// Keyed by NPC pointer so Brecht/Rooke/Wren/Isolde don't share state.
 #include <unordered_map>
 static std::unordered_map<NPC*, int> g_subStep;
 
@@ -84,76 +84,76 @@ void Helper::talk(Player& player, DialogueState& out) {
     out.options.clear();
     g_subStep[this] = 0;  // fresh conversation entry point
 
-    if (toLower(n) == "gally") {
+    if (toLower(n) == "brecht") {
         out.lines = {
-            "Gally looks at " + player.getName() + " suspiciously and points them toward the camp grounds.",
-            "Gally: 'Go head over that way - Newt will show you around.'"
+            "Brecht looks at " + player.getName() + " suspiciously and points them toward the camp grounds.",
+            "Brecht: 'Go head over that way - Aldric will show you around.'"
         };
         return;
     }
 
-    if (toLower(n) == "alby") {
+    if (toLower(n) == "isolde") {
         out.lines = {
-            "Alby: 'So you are the Greenie of the month. Do you remember how you got here? Your name?'",
-            "Alby: 'I see you are confused. Dont worry youll get your name back in a couple days. Its the one thing they let us keep.'"
+            "Isolde: 'So you are the Greenie of the month. Do you remember how you got here? Your name?'",
+            "Isolde: 'I see you are confused. Dont worry youll get your name back in a couple days. Its the one thing they let us keep.'"
         };
-        out.options = { "A. Ask him 'what is this place?'", "B. Stay quiet and let him explain" };
+        out.options = { "A. Ask her 'what is this place?'", "B. Stay quiet and let her explain" };
         return;
     }
 
-    if (toLower(n) == "newt") {
+    if (toLower(n) == "aldric") {
         int dlg = getDialogueProgress();
         int lvl = player.getLevel();
 
         if (dlg == 0 && lvl == 0) {
-            out.lines = { "Newt: 'Hiya! You must be the new guy! I'm Newt, welcome to the Glade.'" };
+            out.lines = { "Aldric: 'Hiya! You must be the new guy! I'm Aldric, welcome to the Hollow.'" };
             out.options = { "A. Yeah.. what is this place?", "B. It is nice to meet you - what is with these giant walls?" };
             return;
         }
         if (dlg == 1 && lvl == 0) {
-            out.lines = { "Newt: 'Hello friend! What can I do you for?'" };
-            out.options = { "A. I want to know more about the runners", "B. What kind of monsters were you saying live in the maze?" };
+            out.lines = { "Aldric: 'Hello friend! What can I do you for?'" };
+            out.options = { "A. I want to know more about the Pathfinders", "B. What kind of monsters were you saying live in the labyrinth?" };
             return;
         }
         if (lvl == 1) {
             std::string roomName = player.getLocation() ? player.getLocation()->getName() : "";
             if (roomName == "The Shed" && dlg == 2) {
-                out.lines = { "Newt: 'Hey friend! You still want to be a runner? Let's make you some gear! You'll need to find materials around the glade - metal, rocks, and sticks work best.'" };
+                out.lines = { "Aldric: 'Hey friend! You still want to be a Pathfinder? Let's make you some gear! You'll need to find materials around the Hollow - metal, rocks, and sticks work best.'" };
                 setDialogueProgress(3);
                 return;
             }
             if (roomName == "The Shed" && dlg == 3) {
-                out.lines = { "Newt: 'Did you get those materials?'" };
+                out.lines = { "Aldric: 'Did you get those materials?'" };
                 out.options = { "A. Yes", "B. No" };
                 return;
             }
             if (roomName == "The Shed" && dlg >= 4) {
-                out.lines = { "Newt: 'The maze should be in its first cycle - if you go now, you can probably make it to the maze's edge by nightfall.'" };
+                out.lines = { "Aldric: 'The maze should be in its first cycle - if you go now, you can probably make it to the labyrinth's edge by nightfall.'" };
                 return;
             }
         }
         if (lvl > 1) {
             bool hasMagic = player.hasMagic();
             out.lines = { hasMagic
-                ? "Newt: 'You survived the maze! Did you learn anything? Why do you look so ragged - do you need to see the medic?'"
-                : "Newt: 'You survived the maze! Did you learn anything? You look ragged - go see the medic.'" };
+                ? "Aldric: 'You survived the labyrinth! Did you learn anything? Why do you look so ragged - do you need to see the medic?'"
+                : "Aldric: 'You survived the labyrinth! Did you learn anything? You look ragged - go see the medic.'" };
             if (hasMagic) {
-                out.options = { "A. Tell Newt about the Griever you killed and what you took from it", "B. Only tell him about the Griever you killed" };
+                out.options = { "A. Tell Aldric about the Warden you killed and what you took from it", "B. Only tell him about the Warden you killed" };
             }
             return;
         }
-        out.lines = { "Newt: 'Hello friend!'" };
+        out.lines = { "Aldric: 'Hello friend!'" };
         return;
     }
 
-    if (toLower(n) == "minho") {
-        out.lines = { "Minho: 'Ready to train?'" };
+    if (toLower(n) == "rooke") {
+        out.lines = { "Rooke: 'Ready to train?'" };
         out.options = { "A. Yes, I want to train", "B. No, not right now" };
         return;
     }
 
-    if (toLower(n) == "terrisa") {
-        out.lines = { "Terrisa: 'I... I know you. Your name is Thomas, isn't it?'" };
+    if (toLower(n) == "wren") {
+        out.lines = { "Wren: 'I... I know you. Your name is Callum, isn't it?'" };
         out.options = { "A. How do you know my name?", "B. Are you alright? What happened to you?" };
         return;
     }
@@ -168,19 +168,19 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
     out.npc = this;
     out.options.clear();
 
-    if (toLower(n) == "alby") {
+    if (toLower(n) == "isolde") {
         int lvl = player.getLevel();
         (void)lvl;
         if (choice == 0) {
-            out.lines = { "Alby: 'This place is called the Glade. Let me show you.' he says, offering a tour." };
+            out.lines = { "Isolde: 'This place is called the Hollow. Let me show you.' she says, offering a tour." };
         } else {
-            out.lines = { "Alby: 'I think a tour of the glade will help you understand things better.'" };
+            out.lines = { "Isolde: 'I think a tour of the Hollow will help you understand things better.'" };
         }
         out.clear_after = true;
         return;
     }
 
-    if (toLower(n) == "newt") {
+    if (toLower(n) == "aldric") {
         int dlg = getDialogueProgress();
         int lvl = player.getLevel();
         int step = g_subStep[this];
@@ -188,25 +188,25 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
         if (dlg == 0 && lvl == 0) {
             if (step == 0) {
                 out.lines = { choice == 0
-                    ? "Newt: 'You see the walls surrounding us? Well those make up a maze that moves every few hours. Me and some of the others here have been here for over 3 years, every month a new person is sent up the hatch you came out of earlier, along with supplies.'"
-                    : "Newt: 'Oh you noticed the walls- Well those make up a maze that moves every few hours. Me and some of the others here have been here for over 3 years, every month a new person is sent up the hatch you came out of earlier, along with supplies.'" };
-                out.options = { "A. So the glade is like a prison?", "B. Have you guys tried to explore the maze?", "C. Why do you stay here?" };
+                    ? "Aldric: 'You see the walls surrounding us? Well those make up a maze that moves every few hours. Me and some of the others here have been here for over 3 years, every month a new person is sent up the hatch you came out of earlier, along with supplies.'"
+                    : "Aldric: 'Oh you noticed the walls- Well those make up a maze that moves every few hours. Me and some of the others here have been here for over 3 years, every month a new person is sent up the hatch you came out of earlier, along with supplies.'" };
+                out.options = { "A. So the Hollow is like a prison?", "B. Have you guys tried to explore the labyrinth?", "C. Why do you stay here?" };
                 g_subStep[this] = 1;
                 return;
             }
             if (step == 1) {
                 if (choice == 0) {
-                    out.lines = { "Newt: 'Not a prison, a safe zone. There are monsters that hunt anyone who enters the maze.'" };
-                    out.options = { "A. So the glade is like a prison?", "B. Have you guys tried to explore the maze?", "C. Why do you stay here?" };
+                    out.lines = { "Aldric: 'Not a prison, a safe zone. There are monsters that hunt anyone who enters the labyrinth.'" };
+                    out.options = { "A. So the Hollow is like a prison?", "B. Have you guys tried to explore the labyrinth?", "C. Why do you stay here?" };
                     return; // stay on step 1 until they pick B
                 } else if (choice == 1) {
-                    out.lines = { "Newt: 'We have a group of people called the runners, their job is to explore the maze and map it so we can escape,' he says, pointing over to a runner." };
+                    out.lines = { "Aldric: 'We have a group of people called the Pathfinders, their job is to explore the labyrinth and map it so we can escape,' he says, pointing over to a Pathfinder." };
                     setDialogueProgress(1);
                     out.clear_after = true;
                     return;
                 } else {
-                    out.lines = { "Newt: 'There are monsters that hunt anyone who enters the maze, their venom has driven many of us insane.'" };
-                    out.options = { "A. So the glade is like a prison?", "B. Have you guys tried to explore the maze?", "C. Why do you stay here?" };
+                    out.lines = { "Aldric: 'There are monsters that hunt anyone who enters the labyrinth, their venom has driven many of us insane.'" };
+                    out.options = { "A. So the Hollow is like a prison?", "B. Have you guys tried to explore the labyrinth?", "C. Why do you stay here?" };
                     return;
                 }
             }
@@ -214,11 +214,11 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
         if (dlg == 1 && lvl == 0) {
             if (step == 0) {
                 if (choice == 0) {
-                    out.lines = { "Newt: 'The runners go into the maze and map it while trying not to get caught by Grievers. I make their gear in my shop.'" };
-                    out.options = { "A. Can I be a runner?", "B. What happens when you get hit by these monsters?" };
+                    out.lines = { "Aldric: 'The Pathfinders go into the labyrinth and map it while trying not to get caught by Wardens. I make their gear in my shop.'" };
+                    out.options = { "A. Can I be a Pathfinder?", "B. What happens when you get hit by these monsters?" };
                     g_subStep[this] = 1;
                 } else {
-                    out.lines = { "Newt: 'We call them Grievers. No one has been attacked and lived to tell about it. We can't let any runner who gets stung back into the Glade.'" };
+                    out.lines = { "Aldric: 'We call them Wardens. No one has been attacked and lived to tell about it. We can't let any Pathfinder who gets stung back into the Hollow.'" };
                     out.clear_after = true;
                 }
                 return;
@@ -226,13 +226,13 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
             if (step == 1) {
                 if (choice == 0) {
                     out.lines = {
-                        "Newt: 'I don't see why not - you'll need gear though. Come see me at the shed later and I'll show you around the crafting shop.' He points south.",
-                        "Newt: 'If you want to know more you should go chat with Minho - he can help you train to be strong enough to fight the monsters.. or at least run away from them. You can find him over west from the cage you came out of.'"
+                        "Aldric: 'I don't see why not - you'll need gear though. Come see me at the shed later and I'll show you around the crafting shop.' He points south.",
+                        "Aldric: 'If you want to know more you should go chat with Rooke - he can help you train to be strong enough to fight the monsters.. or at least run away from them. You can find him over west from the cage you came out of.'"
                     };
                     setDialogueProgress(2);
                     player.setExp(100.0); // triggers level 1
                 } else {
-                    out.lines = { "Newt: 'I can only tell you that if you are a runner.' Newt laughs." };
+                    out.lines = { "Aldric: 'I can only tell you that if you are a Pathfinder.' Aldric laughs." };
                 }
                 out.clear_after = true;
                 return;
@@ -241,7 +241,7 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
         if (lvl == 1 && getDialogueProgress() == 3) {
             if (choice == 0) {
                 out.lines = {
-                    "Newt: 'Perfect! Here are the crafting rules:'",
+                    "Aldric: 'Perfect! Here are the crafting rules:'",
                     "  Rock + Stick   = Spear",
                     "  Metal + Stick  = Sword",
                     "  Leather + Cloth = Leather Armor",
@@ -249,29 +249,29 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
                 };
                 setDialogueProgress(4);
             } else {
-                out.lines = { "Newt: 'Alrighty, come back when you do.'" };
+                out.lines = { "Aldric: 'Alrighty, come back when you do.'" };
             }
             out.clear_after = true;
             return;
         }
         if (lvl > 1) {
             out.lines = { choice == 0
-                ? "Newt: 'What? That is crazy - I've never heard of someone killing a Griever before. Maybe go see if that vial is useful with the medic.'"
-                : "Newt: 'What? That is crazy - I've never heard of someone killing a Griever before. Go see the medic and get checked out.'" };
+                ? "Aldric: 'What? That is crazy - I've never heard of someone killing a Warden before. Maybe go see if that vial is useful with the medic.'"
+                : "Aldric: 'What? That is crazy - I've never heard of someone killing a Warden before. Go see the medic and get checked out.'" };
             out.clear_after = true;
             return;
         }
     }
 
-    if (toLower(n) == "minho") {
+    if (toLower(n) == "rooke") {
         int step = g_subStep[this];
         if (step == 0) {
             if (choice == 0) {
-                out.lines = { "Minho: 'Great! Let's get started.'", "Minho: 'What would you like to train on?'" };
+                out.lines = { "Rooke: 'Great! Let's get started.'", "Rooke: 'What would you like to train on?'" };
                 out.options = { "A. Combat techniques", "B. Endurance", "C. Speed", "D. Strength" };
                 g_subStep[this] = 1;
             } else {
-                out.lines = { "Minho: 'Alright, come back when you're ready to train.'" };
+                out.lines = { "Rooke: 'Alright, come back when you're ready to train.'" };
                 out.clear_after = true;
             }
             return;
@@ -279,32 +279,32 @@ void Helper::continueTalk(Player& player, DialogueState& out, int choice) {
         if (step == 1) {
             CombatState combat;
             if (choice == 0) {
-                out.lines = { "Minho: 'Good choice! Combat techniques are essential for survival in the maze. You'll be fighting me for your training.'" };
+                out.lines = { "Rooke: 'Good choice! Combat techniques are essential for survival in the labyrinth. You'll be fighting me for your training.'" };
                 player.setInCombat(true);
                 player.setCombatTarget(this);
                 player.threat(this, combat);
             } else if (choice == 1) {
-                out.lines = { "Minho: 'Endurance is key to lasting long in the maze. You'll need it to survive the trials. We'll start with some light sparring to build your stamina. Come at me!'" };
+                out.lines = { "Rooke: 'Endurance is key to lasting long in the labyrinth. You'll need it to survive the trials. We'll start with some light sparring to build your stamina. Come at me!'" };
                 player.setInCombat(true);
                 player.setCombatTarget(this);
                 player.attack(this, combat);
             } else if (choice == 2) {
-                out.lines = { "Minho: 'Speed will help you avoid danger and reach your destination quickly and stay alive in the maze. Try to hit me - no swords, just try to hit me.'" };
+                out.lines = { "Rooke: 'Speed will help you avoid danger and reach your destination quickly and stay alive in the labyrinth. Try to hit me - no swords, just try to hit me.'" };
                 player.setInCombat(true);
                 player.setCombatTarget(this);
                 player.attack(this, combat);
             } else {
-                out.lines = { "Minho: 'Strength will make you more formidable in combat. You'll be fighting a training dummy for training.'" };
+                out.lines = { "Rooke: 'Strength will make you more formidable in combat. You'll be fighting a training dummy for training.'" };
             }
             out.clear_after = true;
             return;
         }
     }
 
-    if (toLower(n) == "terrisa") {
+    if (toLower(n) == "wren") {
         out.lines = { choice == 0
-            ? "Terrisa: 'I don't know. It's just... there, in my head. Like the maze put it there.'"
-            : "Terrisa: 'I'll be fine. But the maze - it's not moving anymore. Something changed when I came out.'" };
+            ? "Wren: 'I don't know. It's just... there, in my head. Like the labyrinth put it there.'"
+            : "Wren: 'I'll be fine. But the labyrinth - it's not moving anymore. Something changed when I came out.'" };
         out.clear_after = true;
         return;
     }
@@ -334,14 +334,14 @@ void Medic::talk(Player& player, DialogueState& out) {
     out.options.clear();
     g_subStep[this] = 0;
 
-    if (toLower(getName()) == "pete") {
+    if (toLower(getName()) == "doc marrow") {
         bool hasMagic = player.hasMagic();
         bool hasJuice = player.hasItem("Monster juice");
-        out.lines = { "Pete: 'Hello, welcome to the infirmary, how can I help you?'" };
+        out.lines = { "Doc Marrow: 'Hello, welcome to the infirmary, how can I help you?'" };
         if (hasJuice || hasMagic) {
-            out.options = { "A. I went into the maze and got hurt", "B. Can you take a look at what I took from the Griever I killed?" };
+            out.options = { "A. I went into the labyrinth and got hurt", "B. Can you take a look at what I took from the Warden I killed?" };
         } else {
-            out.options = { "A. I went into the maze and got hurt", "B. Do you get a lot of runners in here?" };
+            out.options = { "A. I went into the labyrinth and got hurt", "B. Do you get a lot of Pathfinders in here?" };
         }
         return;
     }
@@ -354,27 +354,27 @@ void Medic::continueTalk(Player& player, DialogueState& out, int choice) {
     out.npc = this;
     out.options.clear();
 
-    if (toLower(getName()) == "pete") {
+    if (toLower(getName()) == "doc marrow") {
         bool hasMagic = player.hasMagic();
         bool hasJuice = player.hasItem("Monster juice");
         int step = g_subStep[this];
 
         if (step == 0) {
             if (choice == 0) {
-                out.lines = { "Pete: 'Feel free to wait here and rest - you'll feel better in no time.'" };
+                out.lines = { "Doc Marrow: 'Feel free to wait here and rest - you'll feel better in no time.'" };
                 player.setHealth(player.MaxHealth());
                 out.clear_after = true;
                 return;
             }
             if (hasJuice || hasMagic) {
                 out.lines = {
-                    "Pete: 'This looks like a concentrated form of the Griever's venom. I could probably synthesize this into a serum to give us our memories back. Come back in a few minutes and you can try it.'",
-                    "Pete: 'It's done! Would you like to test it?'"
+                    "Doc Marrow: 'This looks like a concentrated form of the Warden's venom. I could probably synthesize this into a serum to give us our memories back. Come back in a few minutes and you can try it.'",
+                    "Doc Marrow: 'It's done! Would you like to test it?'"
                 };
                 out.options = { "A. Sure - what do I have to lose", "B. No, I'm not so sure about this" };
                 g_subStep[this] = 1;
             } else {
-                out.lines = { "Pete: 'More than you might think. You should take a cot and get some rest.'" };
+                out.lines = { "Doc Marrow: 'More than you might think. You should take a cot and get some rest.'" };
                 out.clear_after = true;
             }
             return;
@@ -382,14 +382,14 @@ void Medic::continueTalk(Player& player, DialogueState& out, int choice) {
         if (step == 1) {
             if (choice == 0) {
                 out.lines = {
-                    "The serum brings back your memories of your family and life before the Maze, as well as your name.",
+                    "The serum brings back your memories of your family and life before the labyrinth, as well as your name.",
                     "You also feel an energy surging through you as if it is about to explode out of you.",
                     "[You can now use 'emp' to release an electromagnetic pulse. Watch your energy stat.]"
                 };
                 player.setMagic(true);
                 player.removeItem("Monster juice");
             } else {
-                out.lines = { "Pete: 'Ok, I hope you feel better and can continue to be a runner.'" };
+                out.lines = { "Doc Marrow: 'Ok, I hope you feel better and can continue to be a Pathfinder.'" };
             }
             out.clear_after = true;
             return;

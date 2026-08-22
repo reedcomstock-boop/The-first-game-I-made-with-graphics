@@ -83,7 +83,7 @@
    <properties>
     <property name="spawnx" type="float" value="0.71"/>
     <property name="spawny" type="float" value="0.4"/>
-    <property name="targetName" value="The Cage"/>
+    <property name="targetName" value="The Chute"/>
    </properties>
   </object>
  </objectgroup>
