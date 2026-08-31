@@ -538,8 +538,8 @@ static std::vector<std::pair<int,int>> parseTmxTilesetRanges(
     const std::string& tmx,
     const std::unordered_map<std::string,int>& tilesetIndex);
 
+    RoomScene& scene,const std::unordered_map<std::string,int>& tilesetIndex) {
 static bool loadTiledRoom(const std::string& path, const std::string& roomName,
-                           RoomScene& scene,const std::unordered_map<std::string,int>& tilesetIndex) {
 
     std::ifstream file(path);
 
