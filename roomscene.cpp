@@ -894,5 +894,12 @@ void RoomSceneManager::drawNpcs(const std::vector<NPC*>& npcsInRoom, int originX
         // 4. Calculate coordinates and render cleanly
         int x = originX + (int)(viewportW * (float)(i + 1) / (float)(count + 1));
         it->second.draw(x, y, scale/2.0f);
+
+        // 5. Stash this frame's position on the NPC itself (relative 0..1,
+        // same convention as doors/props) so proximity checks elsewhere
+        // (GameLoop::checkNpcProximity) always match what's on screen.
+        float relX = (viewportW > 0) ? (float)(x - originX) / (float)viewportW : 0.5f;
+        float relY = (viewportH > 0) ? (float)(y - originY) / (float)viewportH : 0.5f;
+        npcsInRoom[i]->setPosition(relX, relY);
     }
 }

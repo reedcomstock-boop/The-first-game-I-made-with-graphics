@@ -34,6 +34,17 @@ public:
     // player sprite in the new room. Returns false every other frame,
     // including when the player picks "B. No" (nothing to consume then).
     bool consumeConfirmedDoor(float& outX, float& outY);
+
+    // NPCs/monsters: main.cpp calls this once per frame with the player's
+    // current position and the room's tile grid size. Measures distance in
+    // TILES against every NPC in the current room's stored position (see
+    // NPC::setPosition, written each frame by RoomSceneManager::drawNpcs).
+    // Within kProximityTiles of the nearest one, raises an "A. Talk /
+    // B. Ignore" option notif — same mechanism as door confirms. No-ops
+    // while a dialogue/prompt is already open, and won't re-prompt for the
+    // same NPC every frame while the player just stands there (see
+    // lastProximityNpc) — walking out of range and back in re-arms it.
+    void checkNpcProximity(float playerRelX, float playerRelY, int roomCols, int roomRows);
 private:
     World&  world;
     Player& player;
@@ -72,5 +83,13 @@ private:
     float pendingSpawnX = 0.5f, pendingSpawnY = 0.5f;
     bool doorJustConfirmed = false;
     float confirmedSpawnX = 0.5f, confirmedSpawnY = 0.5f;
+
+    // NPC-proximity talk prompt state — see checkNpcProximity().
+    bool talkPromptActive = false;
+    NPC* pendingTalkNpc = nullptr;
+    NPC* lastProximityNpc = nullptr; // suppresses re-prompting every frame
+    static constexpr float kProximityTiles = 3.0f;
+
+    void requestTalkPrompt(NPC* npc);
 };
 #endif // GAMELOOP_H

@@ -8,6 +8,7 @@
 #include <sstream>
 #include <cctype>
 #include <algorithm>
+#include <cmath>
 
 GameLoop::GameLoop(World& world, Player& player)
     : world(world), player(player), playing(true) {}
@@ -350,9 +351,8 @@ bool GameLoop::handleOptionNotifChoice(const std::string& input) {
     int choiceIndex = c[0] - 'a';
     if (choiceIndex < 0 || choiceIndex >= (int)opt.options.size()) return false;
 
-    // Doors are the only thing raising option notifs right now — if you add
-    // another use later (combat prompts, etc.), branch on a tag here instead
-    // of assuming every option notif is a door.
+    // Branch on which prompt is actually open — doors and NPC-proximity
+    // talk prompts both use the same OptionNotification mechanism.
     if (doorPromptActive) {
         if (choiceIndex == 0) { // "A. Yes"
             Room* target = world.getRoomByName(pendingDoorTarget);
@@ -366,10 +366,57 @@ bool GameLoop::handleOptionNotifChoice(const std::string& input) {
         }
         doorPromptActive = false;
         pendingDoorTarget.clear();
+    } else if (talkPromptActive) {
+        if (choiceIndex == 0 && pendingTalkNpc) { // "A. Talk"
+            pendingTalkNpc->talk(player, dialogue);
+            dialogue.recordHistory();
+        }
+        // else "B. Ignore" — just close the prompt, nothing else to do.
+        talkPromptActive = false;
+        pendingTalkNpc = nullptr;
     }
 
     Notifications::clearOption();
     return true;
+}
+
+void GameLoop::requestTalkPrompt(NPC* npc) {
+    if (!npc) return;
+    if (dialogue.active || Notifications::getOption().active) return;
+
+    talkPromptActive = true;
+    pendingTalkNpc = npc;
+    Notifications::pushOption("You see " + npc->getName() + " nearby. Talk to them?",
+                               { "A. Talk", "B. Ignore" });
+}
+
+void GameLoop::checkNpcProximity(float playerRelX, float playerRelY, int roomCols, int roomRows) {
+    if (dialogue.active || Notifications::getOption().active) return;
+    if (!player.getLocation()) return;
+
+    NPC* nearest = nullptr;
+    float nearestDistTiles = 1e9f;
+
+    for (NPC* npc : player.getLocation()->getNpcEntities()) {
+        if (!npc) continue;
+        float dxTiles = (npc->getRelX() - playerRelX) * (float)roomCols;
+        float dyTiles = (npc->getRelY() - playerRelY) * (float)roomRows;
+        float distTiles = std::sqrt(dxTiles * dxTiles + dyTiles * dyTiles);
+        if (distTiles < nearestDistTiles) {
+            nearestDistTiles = distTiles;
+            nearest = npc;
+        }
+    }
+
+    if (!nearest || nearestDistTiles > kProximityTiles) {
+        lastProximityNpc = nullptr; // left range — re-arm for next approach
+        return;
+    }
+
+    if (nearest == lastProximityNpc) return; // already prompted this approach
+
+    lastProximityNpc = nearest;
+    requestTalkPrompt(nearest);
 }
 
 void GameLoop::requestDoorEntry(const std::string& targetRoomName, float spawnX, float spawnY) {

@@ -121,6 +121,12 @@ int main() {
             wasOnDoor = onDoorNow;
         }
 
+        // --- NPC/monster proximity: prompt to talk within 5 tiles ---
+        // Every room's Tiled grid is 23x11 (see loadTiledRoom logs) — if
+        // that ever changes per-room, swap these for the actual loaded
+        // room's width/height instead of the hardcoded constants.
+        loop.checkNpcProximity(playerX, playerY, 23, 11);
+
         // Edge-of-room transitions — here is already declared above
  
         if (playerX < 0.0f) {
@@ -193,4 +199,4 @@ int main() {
 
     CloseWindow();
     return 0;
-}   
+}

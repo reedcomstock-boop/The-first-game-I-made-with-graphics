@@ -114,8 +114,19 @@ public:
     virtual void continueTalk(Player& player, DialogueState& out, int choiceIndex);
     double getMaxHealth() const { return maxHealth; }
 
+    // Room-relative position (0..1 range, same convention as TiledDoor/
+    // PropInstance). Set every frame by RoomSceneManager::drawNpcs() to
+    // whatever it actually draws the NPC at, so proximity checks always
+    // match what's on screen — no manual per-NPC placement needed.
+    float getRelX() const { return relX; }
+    float getRelY() const { return relY; }
+    void setPosition(float x, float y) { relX = x; relY = y; }
+
 protected:
     double maxHealth;
+
+private:
+    float relX = 0.5f, relY = 0.5f;
 };
 
 class Helper : public NPC {
