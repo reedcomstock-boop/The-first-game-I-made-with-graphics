@@ -28,10 +28,6 @@ static const int WALL_TILE_INDEX    = 27;  // Wall_Tiles.png    row 1, col 2  �
 static const int WATER_TILE_INDEX   = 0;   // Water_tiles.png   row 0, col 0  — solid, tiles clean
 static const int DUNGEON_TILE_INDEX = 0;   // Dungeon_Tiles.png row 0, col 0  — solid, tiles clean
 static const int DUNGEON_WALL_INDEX = 2;   // Dungeon_Tiles.png row 0, col 2  — solid, tiles clean
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 
 // Per-room Tiled map cache. Keyed by room name, so any number of rooms can
 // each load their own .tmx independently — this used to be a single set of
@@ -56,7 +52,6 @@ static std::unordered_map<std::string, TiledRoomData> g_tiledRooms;
 // Any room NOT listed here still falls back to the old derivation, so
 // new rooms don't need an entry unless their display name diverges from
 // their filename.
-<<<<<<< HEAD
 static const std::unordered_map<std::string, std::string> roomTmxOverrides = {
     { "The Hollow",    "assets/maps/The_Glade.tmx"  },
     { "The Chute",     "assets/maps/The_Cage.tmx"   },
@@ -67,11 +62,6 @@ static const std::unordered_map<std::string, std::string> roomTmxOverrides = {
 static std::string tiledMapPathForRoom(const std::string& roomName) {
     auto it = roomTmxOverrides.find(roomName);
     if (it != roomTmxOverrides.end()) return it->second;
-=======
-
-
-static std::string tiledMapPathForRoom(const std::string& roomName) {
->>>>>>> main
 
     std::string fname = roomName;
     for (char& c : fname) if (c == ' ') c = '_';
@@ -161,21 +151,12 @@ void RoomSceneManager::loadNpcPortraits(const std::string& assetDir) {
     // and what getPortrait() is looked up by) — file paths stay pointed at
     // the original asset folders/filenames, since those are just internal
     // disk paths and never shown to the player.
-<<<<<<< HEAD
     npcPortraits["Isolde"]     = LoadTexture((assetDir + "/npc/Alby/Alby_face.png").c_str());
     npcPortraits["Brecht"]     = LoadTexture((assetDir + "/npc/Gally/Gally_face.png").c_str());
     npcPortraits["Rooke"]      = LoadTexture((assetDir + "/npc/Minho/Minho_face.png").c_str());
     npcPortraits["Wren"]       = LoadTexture((assetDir + "/npc/Terrisa/terrisa_face.png").c_str());
     npcPortraits["Aldric"]     = LoadTexture((assetDir + "/npc/Newt/Newt_face.png").c_str());
     npcPortraits["Doc Marrow"] = LoadTexture((assetDir + "/npc/Pete/Pete_face.png").c_str());
-=======
-    npcPortraits["alby"]     = LoadTexture((assetDir + "/npc/Alby/Alby_face.png").c_str());
-    npcPortraits["gally"]     = LoadTexture((assetDir + "/npc/Gally/Gally_face.png").c_str());
-    npcPortraits["minho"]      = LoadTexture((assetDir + "/npc/Minho/Minho_face.png").c_str());
-    npcPortraits["terrisa"]       = LoadTexture((assetDir + "/npc/Terrisa/terrisa_face.png").c_str());
-    npcPortraits["newt"]     = LoadTexture((assetDir + "/npc/Newt/Newt_face.png").c_str());
-    npcPortraits["pete"] = LoadTexture((assetDir + "/npc/Pete/Pete_face.png").c_str());
->>>>>>> main
 }
 
 Texture2D RoomSceneManager::getPortrait(const std::string& name) const {
@@ -298,10 +279,6 @@ static bool loadTmxLayerCSV(const std::string& tmx,const std::string& layerName,
     return (int)out.size() == expectedWidth * expectedHeight;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 // Reads every <tileset firstgid="N" source="....tsx"/> declaration out of a
 // TMX file and maps each one, by filename, to a runtime tileset index using
 // whatever tilesets have been registered via registerTileset(). Matching is
