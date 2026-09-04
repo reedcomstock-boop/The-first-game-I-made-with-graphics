@@ -4,3 +4,4 @@ Game.exe
 *.dll
 .DS_Store
 *.zip.DS_Store
+roomscene.cpp
