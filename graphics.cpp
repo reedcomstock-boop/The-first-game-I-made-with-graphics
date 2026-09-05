@@ -25,7 +25,7 @@ static const int32_t BASE_ScreenWidth = 800;
 static const int32_t BASE_ScreenHigh = 600;
 static const int32_t BASE_PAD = 16;
 
-static inline float ScreenWidth() { return (float)GetScreenWidth(); } 
+static inline float ScreenWidth() { return (float)GetScreenWidth(); }
 static inline float ScreenHeight() { return (float)GetScreenHeight(); }
 static inline float SX() { return ScreenWidth() / (float)BASE_ScreenWidth; }  // width scale factor
 static inline float SY() { return ScreenHeight() / (float)BASE_ScreenHigh; }  // height scale factor
@@ -53,7 +53,7 @@ static inline Rectangle INPUT_PANEL() {
     return { PAD(), (BASE_ScreenHigh - 75) * SY(), ScreenWidth() - PAD()*2.0f, 50 * SY() };
 }
 
- 
+
 static inline Rectangle Game_Clock_PANEL() {
     Rectangle hud   = HUD_PANEL();
     Rectangle input = INPUT_PANEL();
@@ -158,7 +158,7 @@ static void drawGameClock() {
 
     int32_t sceneH = (int32_t)(SCENE_HEIGHT * SY());
     float sceneScale = (float)sceneH / (float)(SCENE_ROWS * 16);
-    
+
     int32_t gameClock = Updater::getGameClock();
     int32_t updateCount = Updater::getUpdateCount();
     if (gameClock >= 24) {
@@ -178,8 +178,8 @@ static void drawGameClock() {
         int32_t textY = (int32_t)(clockPanel.y + (clockPanel.height - FS()) / sceneScale);
         DrawText(text.c_str(), textX, textY, FS(), WHITE);
     }
-    
-    
+
+
     std::string text2 = std::to_string(gameClock) + ":" + std::to_string(updateCount * 19);
 
     //int32_t textX2 = (int32_t)clockPanel.x + (int32_t)(8 * SX());
@@ -199,8 +199,7 @@ static void drawHUD(const Player& player) {
     int32_t barH = (int32_t)(18 * SY());
 
     // Health bar
-    float hpFrac = (player.MaxHealth() > 0)
-        ? (float)(player.getHealth() / player.MaxHealth()) : 0.f;
+    float hpFrac = (player.MaxHealth() > 0) ? (float)(player.getHealth() / player.MaxHealth()) : 0.f;
     if (hpFrac < 0.f) hpFrac = 0.f;
     if (hpFrac > 1.f) hpFrac = 1.f;
     std::string hpLabel = "HP " + std::to_string((int32_t)player.getHealth())
@@ -225,8 +224,20 @@ static void drawHUD(const Player& player) {
     if (player.getInCombat()) {
         int32_t boxW = (int32_t)(hudPanel.width - 16 * SX());
         int32_t cx = (int32_t)hudPanel.x + (int32_t)(8 * SX());
-        DrawRectangle(cx, y + barH + (int32_t)(28 * SY()), boxW, (int32_t)(18 * SY()), C_COMBAT);
-        DrawText("[ IN COMBAT ]", cx + (int32_t)(6 * SX()), y + barH + (int32_t)(30 * SY()), FS_SMALL(), BLACK);
+        DrawRectangle(cx, y + barH + (int32_t)(118 * SY()), boxW, (int32_t)(18 * SY()), C_COMBAT);
+        DrawText("[ IN COMBAT ]", cx + (int32_t)(6 * SX()), y + barH + (int32_t)(120 * SY()), FS_SMALL(), BLACK);
+    }
+    else if(player.getInCombat() || player.getHealth() <= (player.MaxHealth())/10){
+        int32_t boxW = (int32_t)(hudPanel.width - 16 * SX());
+        int32_t cx = (int32_t)hudPanel.x + (int32_t)(8 * SX());
+        DrawRectangle(cx, y + barH + (int32_t)(118 * SY()), boxW, (int32_t)(18 * SY()), C_HP);
+        DrawText("[ NEAR DEATH ]", cx + (int32_t)(6 * SX()), y + barH + (int32_t)(120 * SY()), FS_SMALL(), BLACK);
+    }
+    else{
+        int32_t boxW = (int32_t)(hudPanel.width - 16 * SX());
+        int32_t cx = (int32_t)hudPanel.x + (int32_t)(8 * SX());
+        DrawRectangle(cx, y + barH + (int32_t)(118 * SY()), boxW, (int32_t)(18 * SY()),C_EXIT);
+        DrawText("[ OUT OF COMBAT ]", cx + (int32_t)(6 * SX()), y + barH + (int32_t)(120 * SY()), FS_SMALL(), BLACK);
     }
 
     // Stats grid: 2 rows x 2 columns
@@ -760,6 +771,6 @@ void drawGame(const World& world, const Player& player,
     drawHUD(player);
     drawPortrait(world, player);
     drawInputBar(inputBuffer);
- 
+
     EndDrawing();
 }

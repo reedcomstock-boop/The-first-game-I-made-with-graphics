@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="23" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="23" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="3">
  <tileset firstgid="1" source="../tiles/Floors_Tiles.tsx"/>
  <tileset firstgid="651" source="../tiles/Wall_Tiles.tsx"/>
  <tileset firstgid="1276" source="../tiles/Dungeon_Tiles.tsx"/>
@@ -78,5 +78,14 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <objectgroup id="7" name="Door"/>
+ <objectgroup id="7" name="doors">
+  <object id="1" name="the tree house" x="312.913" y="58.1798" width="31.763" height="40.5686">
+   <properties>
+    <property name="spawnx" type="float" value="0.5"/>
+    <property name="spawny" type="float" value="0.5"/>
+    <property name="targetName" value="the tree house"/>
+   </properties>
+  </object>
+  <object id="2" x="428.958" y="240.267" height="0.943456"/>
+ </objectgroup>
 </map>
