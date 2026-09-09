@@ -894,5 +894,6 @@ void RoomSceneManager::drawNpcs(const std::vector<NPC*>& npcsInRoom, int originX
         // 4. Calculate coordinates and render cleanly
         int x = originX + (int)(viewportW * (float)(i + 1) / (float)(count + 1));
         it->second.draw(x, y, scale/2.0f);
-    }
+
+}
 }
